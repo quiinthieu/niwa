@@ -55,17 +55,18 @@ trap cleanup EXIT
 RUST_JSON="$WORK_TMP/rust-bench.json"
 MACOS_JSON="$WORK_TMP/macos-bench.json"
 
-CARGO_EXTRA_ARGS=()
-if [ "${NIWA_CARGO_OFFLINE:-0}" = "1" ]; then
-    CARGO_EXTRA_ARGS+=(--offline)
-fi
-
 echo "==> Running Rust --release PLAN.md §7 benchmarks (niwa _ingest, niwa prompt, 30-day catch_up, daemon, TUI)..."
 (
     cd "$REPO_ROOT"
-    NIWA_BENCH_JSON_OUT="$RUST_JSON" cargo test --release "${CARGO_EXTRA_ARGS[@]}" \
-        -p niwa-garden --test perf_bench run_release_perf_benchmarks_and_emit_json \
-        -- --ignored --exact --nocapture
+    if [ "${NIWA_CARGO_OFFLINE:-0}" = "1" ]; then
+        NIWA_BENCH_JSON_OUT="$RUST_JSON" cargo test --release --offline \
+            -p niwa-garden --test perf_bench run_release_perf_benchmarks_and_emit_json \
+            -- --ignored --exact --nocapture
+    else
+        NIWA_BENCH_JSON_OUT="$RUST_JSON" cargo test --release \
+            -p niwa-garden --test perf_bench run_release_perf_benchmarks_and_emit_json \
+            -- --ignored --exact --nocapture
+    fi
 )
 
 HOST_OS="$(uname -s)"
