@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): moonflower.
+species_id = "moonflower"
+seed = [
+    '       ',
+    '       ',
+    '  .o.  ',
+]
+sprout = [
+    '       ',
+    '  (|   ',
+    '  -+-  ',
+]
+young = [
+    '  (|)  ',
+    '  \+/  ',
+    '  -+-  ',
+]
+mature = [
+    '  (o)  ',
+    ' (-|-) ',
+    '  -+-  ',
+]
+blooming = [
+    ' *@#@* ',
+    ' (-|-) ',
+    '  -+-  ',
+]

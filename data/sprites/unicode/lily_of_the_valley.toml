@@ -1,0 +1,27 @@
+# Multi-line Unicode stage sprites (PLAN §4.3, §8 & T07): lily_of_the_valley.
+species_id = "lily_of_the_valley"
+seed = [
+    "       ",
+    "       ",
+    "  ·∘·  ",
+]
+sprout = [
+    "       ",
+    "  ╭╴   ",
+    "  ┴──  ",
+]
+young = [
+    "  ╭─╮  ",
+    "  │ ∘  ",
+    "  ┴──  ",
+]
+mature = [
+    " ╭─┬─╮ ",
+    " │ ∘ ∘ ",
+    " ─┴──  ",
+]
+blooming = [
+    " ╭┬─┬╮ ",
+    " │◈ ◈░ ",
+    " ─┴──  ",
+]

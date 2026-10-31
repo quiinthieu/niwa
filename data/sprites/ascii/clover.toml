@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): clover.
+species_id = "clover"
+seed = [
+    '       ',
+    '       ',
+    '  ...  ',
+]
+sprout = [
+    '       ',
+    '  (,)  ',
+    '  -+-  ',
+]
+young = [
+    '       ',
+    ' (o+o) ',
+    '  -+-  ',
+]
+mature = [
+    '  o o  ',
+    ' (o|o) ',
+    ' --+-- ',
+]
+blooming = [
+    ' *o*o* ',
+    ' (o|o) ',
+    ' --+-- ',
+]

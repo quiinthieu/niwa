@@ -651,7 +651,12 @@ dependencies = [
 name = "tg-render"
 version = "0.1.0"
 dependencies = [
+ "insta",
+ "proptest",
+ "serde",
  "tg-core",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

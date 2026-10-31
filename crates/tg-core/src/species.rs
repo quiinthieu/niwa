@@ -47,6 +47,27 @@ pub enum ColorHint {
     Crimson,
 }
 
+/// Active sprite set (`unicode` box/block glyphs or 7-bit `ascii`; PLAN §4.3 & §6).
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SpriteSet {
+    #[default]
+    Unicode,
+    Ascii,
+}
+
+impl SpriteSet {
+    pub const ALL: [Self; 2] = [Self::Unicode, Self::Ascii];
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unicode => "unicode",
+            Self::Ascii => "ascii",
+        }
+    }
+}
+
 /// Per-stage sprite strings for one sprite set (`unicode` or `ascii`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StageSprites {
@@ -75,6 +96,16 @@ impl StageSprites {
 pub struct SpeciesSprites {
     pub unicode: StageSprites,
     pub ascii: StageSprites,
+}
+
+impl SpeciesSprites {
+    #[must_use]
+    pub const fn for_set(&self, set: SpriteSet) -> &StageSprites {
+        match set {
+            SpriteSet::Unicode => &self.unicode,
+            SpriteSet::Ascii => &self.ascii,
+        }
+    }
 }
 
 /// Validated species definition loaded from `data/species/*.toml`.
@@ -109,6 +140,11 @@ impl Species {
             stage_thresholds: self.gp_per_stage,
             species_multiplier_bp: self.growth_multiplier_bp,
         }
+    }
+
+    #[must_use]
+    pub fn inline_sprite(&self, set: SpriteSet, stage: Stage) -> &str {
+        self.sprites.for_set(set).for_stage(stage)
     }
 }
 
@@ -289,11 +325,11 @@ fn is_valid_species_id(id: &str) -> bool {
         && bytes.all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
-fn is_forbidden_emoji_char(ch: char) -> bool {
-    let code = u32::from(ch);
-    (0xFE0E..=0xFE0F).contains(&code)
-        || (0x2600..=0x27BF).contains(&code)
-        || (0x1F000..=0x1FAFF).contains(&code)
+/// Returns `true` when `ch` falls in an emoji/dingbat/variation-selector range forbidden in sprites (PLAN §4.3).
+#[must_use]
+pub const fn is_forbidden_emoji_char(ch: char) -> bool {
+    let code = ch as u32;
+    matches!(code, 0xFE0E..=0xFE0F | 0x2600..=0x27BF | 0x1F000..=0x1FAFF)
 }
 
 fn validate_unicode_sprites(

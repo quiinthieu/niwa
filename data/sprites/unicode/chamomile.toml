@@ -1,0 +1,27 @@
+# Multi-line Unicode stage sprites (PLAN §4.3, §8 & T07): chamomile.
+species_id = "chamomile"
+seed = [
+    "       ",
+    "       ",
+    "  ·∘·  ",
+]
+sprout = [
+    "       ",
+    "   ╷   ",
+    "  ·┴·  ",
+]
+young = [
+    "   ╷   ",
+    "  ╴┼╶  ",
+    "  ─┴─  ",
+]
+mature = [
+    "  ∘╷∘  ",
+    "  ╭┼╮  ",
+    "  ─┴─  ",
+]
+blooming = [
+    " ◎ ◈ ◎ ",
+    " ╰┬┼┬╯ ",
+    "  ─┴─  ",
+]

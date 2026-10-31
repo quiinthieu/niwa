@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): moss.
+species_id = "moss"
+seed = [
+    '       ',
+    '       ',
+    '  ...  ',
+]
+sprout = [
+    '       ',
+    '       ',
+    '  ___  ',
+]
+young = [
+    '       ',
+    '  ___  ',
+    ' _mmm_ ',
+]
+mature = [
+    '  ...  ',
+    ' _mmm_ ',
+    ' mmmmm ',
+]
+blooming = [
+    ' .*o*. ',
+    ' _mmm_ ',
+    ' MMMMM ',
+]

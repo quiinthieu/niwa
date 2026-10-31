@@ -1,0 +1,27 @@
+# Multi-line Unicode stage sprites (PLAN §4.3, §8 & T07): sunburst_orchid.
+species_id = "sunburst_orchid"
+seed = [
+    "       ",
+    "       ",
+    "  ·◇·  ",
+]
+sprout = [
+    "       ",
+    "   ╷   ",
+    "  ╭┴╮  ",
+]
+young = [
+    "   ╷   ",
+    "  ╭│╮  ",
+    "  ╭┴╮  ",
+]
+mature = [
+    "  ╭◎╮  ",
+    "  ├┼┤  ",
+    "  ╭┴╮  ",
+]
+blooming = [
+    " ▓◈█◈▓ ",
+    "  ├┼┤  ",
+    "  ╭┴╮  ",
+]

@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): sakura.
+species_id = "sakura"
+seed = [
+    '       ',
+    '       ',
+    '  ...  ',
+]
+sprout = [
+    '       ',
+    '  /;   ',
+    '  -+-  ',
+]
+young = [
+    '  /T\  ',
+    '  \|   ',
+    '  -+-  ',
+]
+mature = [
+    ' /-+-\ ',
+    '  (+/  ',
+    '  -+-  ',
+]
+blooming = [
+    ' .*#*. ',
+    ' .(+/. ',
+    '  -+-  ',
+]
