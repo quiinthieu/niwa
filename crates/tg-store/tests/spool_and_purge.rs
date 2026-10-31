@@ -9,7 +9,7 @@ use tg_core::balance::Balance;
 use tg_core::clock::Timestamp;
 use tg_core::sim::Garden;
 use tg_store::config::SignalKind;
-use tg_store::save::{GardenSave, GardenStore, WaterBudgetState};
+use tg_store::save::{GardenSave, GardenStore, GitPollState, WaterBudgetState};
 use tg_store::spool::{DurationBucket, EventSpool, ShellExitClass, WorkEvent};
 
 #[test]
@@ -292,4 +292,42 @@ fn signal_kind_parsing_and_water_budget_persistence_round_trip() {
 
     let reloaded = store.load().unwrap().expect("reload garden");
     assert_eq!(reloaded.save.water_budget, save.water_budget);
+}
+
+#[test]
+fn git_poll_state_persists_counts_and_timestamps_only_and_clears_on_purge() {
+    let env = TestEnv::new();
+    let store = GardenStore::new(env.paths().clone());
+
+    // Existing v1 save fixture without `git_poll` loads with default empty `GitPollState`.
+    let _ = env.stage_save_fixture("minimal_v1.json");
+    let loaded_fixture = store.load().unwrap().expect("load minimal_v1.json");
+    assert_eq!(loaded_fixture.save.git_poll, GitPollState::default());
+
+    let balance = Balance::load_default();
+    let garden = Garden::from_balance(42, &balance, Timestamp::from_unix_secs(1_700_000_000));
+    let mut save = GardenSave::from_garden(&garden);
+
+    // When empty, `git_poll` is omitted from serialized `garden.json`.
+    store.save(&save).expect("save default garden");
+    let raw_empty = fs::read_to_string(env.paths().garden_file()).unwrap();
+    assert!(!raw_empty.contains("git_poll"));
+
+    save.git_poll = GitPollState {
+        consent_anchor: Some(Timestamp::from_unix_secs(1_700_000_000)),
+        last_poll_at: Some(Timestamp::from_unix_secs(1_700_000_300)),
+        credited_commits: 7,
+    };
+    store.save(&save).expect("save garden with git_poll");
+
+    let reloaded = store.load().unwrap().expect("reload garden");
+    assert_eq!(reloaded.save.git_poll, save.git_poll);
+
+    store
+        .clear_git_poll_state()
+        .expect("clear git_poll state on --purge");
+    let after_clear = store.load().unwrap().expect("reload cleared garden");
+    assert_eq!(after_clear.save.git_poll, GitPollState::default());
+    let raw_after_clear = fs::read_to_string(env.paths().garden_file()).unwrap();
+    assert!(!raw_after_clear.contains("git_poll"));
 }

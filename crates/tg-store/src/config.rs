@@ -283,6 +283,20 @@ impl AppConfig {
                 reason: "dormant_after_days must be at least 1".to_string(),
             });
         }
+        if let Some(email) = &self.git.author_email {
+            validate_author_email("git.author_email", email)?;
+        }
+        for repo in &self.git.repos {
+            let text = repo.to_string_lossy();
+            if text.trim().is_empty() || text.chars().any(char::is_control) {
+                return Err(StoreError::InvalidConfigValue {
+                    key: "git.repos".to_string(),
+                    value: text.into_owned(),
+                    reason: "repository paths must be non-empty and free of control characters"
+                        .to_string(),
+                });
+            }
+        }
         Ok(())
     }
 
@@ -442,8 +456,7 @@ impl AppConfig {
                 self.git.repos = parse_repos(key, value)?;
             }
             "git.author_email" => {
-                let trimmed = value.trim();
-                self.git.author_email = (!trimmed.is_empty()).then(|| trimmed.to_string());
+                self.git.author_email = parse_author_email(key, value)?;
             }
             "prompt.style" => {
                 self.prompt.style = match value {
@@ -569,26 +582,84 @@ fn parse_optional_timestamp(key: &str, value: &str) -> Result<Option<Timestamp>,
     Ok(Some(Timestamp::from_unix_secs(secs)))
 }
 
+fn parse_author_email(key: &str, value: &str) -> Result<Option<String>, StoreError> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed == "none" {
+        return Ok(None);
+    }
+    let normalized = trimmed
+        .strip_prefix('<')
+        .and_then(|s| s.strip_suffix('>'))
+        .map_or(trimmed, str::trim);
+    validate_author_email(key, normalized)?;
+    Ok(Some(normalized.to_string()))
+}
+
+fn validate_author_email(key: &str, email: &str) -> Result<(), StoreError> {
+    if email.is_empty()
+        || email
+            .chars()
+            .any(|ch| ch.is_whitespace() || ch.is_control() || matches!(ch, '<' | '>'))
+    {
+        return Err(invalid_val(
+            key,
+            email,
+            "expected a single email address like 'gardener@example.com' (or 'none' to clear)",
+        ));
+    }
+    let Some((local, domain)) = email.split_once('@') else {
+        return Err(invalid_val(
+            key,
+            email,
+            "author email must contain '@' (or 'none' to clear)",
+        ));
+    };
+    if local.is_empty() || domain.is_empty() || domain.contains('@') {
+        return Err(invalid_val(
+            key,
+            email,
+            "author email must have non-empty local and domain parts around '@'",
+        ));
+    }
+    Ok(())
+}
+
 fn parse_repos(key: &str, value: &str) -> Result<Vec<PathBuf>, StoreError> {
     let trimmed = value.trim();
-    if trimmed.is_empty() {
+    if trimmed.is_empty() || trimmed == "none" {
         return Ok(Vec::new());
     }
-    if trimmed.starts_with('[') {
+    let raw_paths: Vec<PathBuf> = if trimmed.starts_with('[') {
         let items: Vec<String> = serde_json::from_str(trimmed)
             .map_err(|_| invalid_val(key, value, "invalid JSON array of repository paths"))?;
-        return Ok(items
+        items
             .into_iter()
             .map(|item| item.trim().to_string())
             .filter(|item| !item.is_empty())
             .map(PathBuf::from)
-            .collect());
-    }
+            .collect()
+    } else {
+        trimmed
+            .split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(PathBuf::from)
+            .collect()
+    };
 
-    Ok(trimmed
-        .split(',')
-        .map(str::trim)
-        .filter(|part| !part.is_empty())
-        .map(PathBuf::from)
-        .collect())
+    let mut deduped = Vec::with_capacity(raw_paths.len());
+    for repo in raw_paths {
+        let text = repo.to_string_lossy();
+        if text.chars().any(char::is_control) {
+            return Err(invalid_val(
+                key,
+                value,
+                "repository paths must not contain control characters",
+            ));
+        }
+        if !deduped.contains(&repo) {
+            deduped.push(repo);
+        }
+    }
+    Ok(deduped)
 }

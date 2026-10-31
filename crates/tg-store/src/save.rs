@@ -67,6 +67,27 @@ impl WaterBudgetState {
     }
 }
 
+/// Persisted privacy-safe polling cursor for the opt-in `git` signal (PLAN §0.4, §5 & §10 T11).
+///
+/// Stores Unix timestamps and an aggregate commit count only—never repository paths,
+/// commit hashes, branch names, author strings, or commit messages.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitPollState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consent_anchor: Option<Timestamp>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_poll_at: Option<Timestamp>,
+    #[serde(default)]
+    pub credited_commits: u64,
+}
+
+impl GitPollState {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 /// Versioned `garden.json` v1 persistence payload (PLAN §6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GardenSave {
@@ -90,6 +111,8 @@ pub struct GardenSave {
     pub diagnostics: SaveDiagnostics,
     #[serde(default, skip_serializing_if = "WaterBudgetState::is_empty")]
     pub water_budget: WaterBudgetState,
+    #[serde(default, skip_serializing_if = "GitPollState::is_empty")]
+    pub git_poll: GitPollState,
 }
 
 impl GardenSave {
@@ -108,6 +131,7 @@ impl GardenSave {
             dormant: garden.is_dormant(),
             diagnostics: SaveDiagnostics::default(),
             water_budget: WaterBudgetState::default(),
+            git_poll: GitPollState::default(),
         }
     }
 
@@ -327,6 +351,19 @@ impl GardenStore {
             Some(&validate_existing),
             fault,
         )
+    }
+
+    /// Clears persisted [`GitPollState`] inside `garden.json` under the exclusive store lock
+    /// when `niwa signals disable git --purge` is run (PLAN §5 & §10 T11).
+    pub fn clear_git_poll_state(&self) -> Result<(), StoreError> {
+        let _guard = self.lock()?;
+        if let Some(mut loaded) = self.load()? {
+            if !loaded.save.git_poll.is_empty() {
+                loaded.save.git_poll = GitPollState::default();
+                self.save(&loaded.save)?;
+            }
+        }
+        Ok(())
     }
 
     /// Removes persisted garden state (`garden.json`, `garden.json.bak`, `snapshot.json`) under

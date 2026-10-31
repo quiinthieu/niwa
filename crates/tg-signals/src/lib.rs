@@ -6,7 +6,7 @@ pub mod consent;
 pub mod evaluator;
 
 pub use tg_store::config::{ParseSignalKindError, SignalConsent, SignalKind, SignalsConfig};
-pub use tg_store::save::WaterBudgetState;
+pub use tg_store::save::{GitPollState, WaterBudgetState};
 pub use tg_store::spool::{
     DurationBucket, EventSpool, PurgeOutcome, ShellExitClass, SpoolCounts, SpoolReadOutcome,
     WorkEvent,
