@@ -78,6 +78,7 @@ pub struct TuiApp {
     session: GardenSession,
     scheduler: FrameScheduler,
     color_tier: ColorTier,
+    ambient_phase: u8,
     selected_plot: usize,
     move_source: Option<usize>,
     overlay: Option<Overlay>,
@@ -99,7 +100,7 @@ impl TuiApp {
         let status_message = if let Some(notice) = session.recovery_notice() {
             notice.to_string()
         } else {
-            "Welcome to Niwa — [p]lant [h]arvest [m]ove [c]ompost [a]lmanac [s]ettings [?]help [q]uit"
+            "Welcome to Niwa - [p]lant [h]arvest [m]ove [c]ompost [a]lmanac [s]ettings [?]help [q]uit"
                 .to_string()
         };
 
@@ -107,6 +108,7 @@ impl TuiApp {
             session,
             scheduler,
             color_tier,
+            ambient_phase: 0,
             selected_plot: 0,
             move_source: None,
             overlay: away.map(Overlay::AwaySummary),
@@ -128,6 +130,11 @@ impl TuiApp {
     #[must_use]
     pub const fn color_tier(&self) -> ColorTier {
         self.color_tier
+    }
+
+    #[must_use]
+    pub const fn ambient_phase(&self) -> u8 {
+        self.ambient_phase
     }
 
     #[must_use]
@@ -278,6 +285,7 @@ impl TuiApp {
         if self.scheduler.should_draw(mono_now) {
             self.render(terminal)?;
             self.scheduler.mark_drawn(mono_now);
+            self.ambient_phase = (self.ambient_phase + 1) % 4;
             return Ok(true);
         }
         Ok(false)
@@ -746,7 +754,7 @@ impl TuiApp {
                     });
                 } else {
                     self.status_message = format!(
-                        "Plot {} is empty — nothing to compost.",
+                        "Plot {} is empty - nothing to compost.",
                         self.selected_plot + 1
                     );
                 }
@@ -766,7 +774,7 @@ impl TuiApp {
                     );
                 } else {
                     self.status_message = format!(
-                        "Plot {} is empty — select a planted plot to move.",
+                        "Plot {} is empty - select a planted plot to move.",
                         self.selected_plot + 1
                     );
                 }
@@ -797,14 +805,14 @@ impl TuiApp {
             .is_some_and(tg_core::model::Plot::is_empty);
         if !is_empty {
             self.status_message = format!(
-                "Plot {} already holds a plant — select an empty plot to plant.",
+                "Plot {} already holds a plant - select an empty plot to plant.",
                 self.selected_plot + 1
             );
             return;
         }
         if self.available_seeds().is_empty() {
             self.status_message =
-                "Seed pouch is empty — harvest a blooming plant or compost to gather seeds."
+                "Seed pouch is empty - harvest a blooming plant or compost to gather seeds."
                     .to_string();
             return;
         }

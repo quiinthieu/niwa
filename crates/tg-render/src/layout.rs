@@ -4,7 +4,8 @@ use crate::color::{ColorTier, StyleSpec};
 use crate::glyph::compact_glyph;
 use crate::palette::{plant_style, rarity_style, SeasonPalette};
 use crate::sprites::{
-    empty_plot_art, pot_rim, seasonal_ambient_banner, wide_pot, SpriteBank, SPRITE_ART_WIDTH,
+    empty_plot_art, pot_rim, seasonal_ambient_banner_frame, seasonal_canopy_aura,
+    seasonal_cell_motes, seasonal_header_tag, wide_pot, SpriteBank, SPRITE_ART_WIDTH,
 };
 use crate::width::{display_width, pad_center_to_width, pad_right_to_width, truncate_to_width};
 use tg_core::model::{Plant, Plot, Stage};
@@ -315,7 +316,7 @@ impl BoxChars {
     }
 }
 
-/// Renders a [`Garden`] into a pure, width-safe [`RenderedFrame`] with no terminal I/O.
+/// Renders a [`Garden`] into a pure, width-safe [`RenderedFrame`] with no terminal I/O at resting phase `0`.
 #[must_use]
 pub fn render_garden(
     garden: &Garden,
@@ -324,8 +325,23 @@ pub fn render_garden(
     viewport: Viewport,
     options: RenderOptions,
 ) -> RenderedFrame {
+    render_garden_with_phase(garden, catalog, sprites, viewport, options, 0)
+}
+
+/// Renders a [`Garden`] into a pure, width-safe [`RenderedFrame`] with seasonal ambient particle
+/// `phase` (`0..4`, resting at `0` whenever `garden.is_dormant()` is true; PLAN §4.2, §4.3 & §10 T16).
+#[must_use]
+pub fn render_garden_with_phase(
+    garden: &Garden,
+    catalog: &SpeciesCatalog,
+    sprites: &SpriteBank,
+    viewport: Viewport,
+    options: RenderOptions,
+    phase: u8,
+) -> RenderedFrame {
     let w = usize::from(viewport.width);
     let h = usize::from(viewport.height);
+    let effective_phase = if garden.is_dormant() { 0 } else { phase % 4 };
 
     if w == 0 || h == 0 {
         let layout = if viewport.width >= MIN_GRID_WIDTH && viewport.height >= MIN_GRID_HEIGHT {
@@ -342,7 +358,9 @@ pub fn render_garden(
     }
 
     if viewport.width >= MIN_GRID_WIDTH && viewport.height >= MIN_GRID_HEIGHT {
-        if let Some(lines) = try_render_grid(garden, catalog, sprites, w, h, options) {
+        if let Some(lines) =
+            try_render_grid(garden, catalog, sprites, w, h, options, effective_phase)
+        {
             return RenderedFrame {
                 viewport,
                 layout: LayoutKind::Grid,
@@ -391,6 +409,7 @@ fn try_render_grid(
     width: usize,
     height: usize,
     options: RenderOptions,
+    phase: u8,
 ) -> Option<Vec<RenderedLine>> {
     let plot_count = garden.plots().len().max(1);
     let mut cols = match plot_count {
@@ -432,17 +451,24 @@ fn try_render_grid(
 
     // 1. Top header row.
     out.push(build_header_line(
-        garden, width, options, &palette, &box_chars,
+        garden, width, options, &palette, &box_chars, phase,
     ));
 
     // 2. Optional seasonal ambient sky row on tall terminals (e.g. 120x40).
     if show_ambient_banner {
         let mut ambient_lb = LineBuilder::default();
         let banner = pad_center_to_width(
-            seasonal_ambient_banner(options.sprites, options.season),
+            seasonal_ambient_banner_frame(options.sprites, options.season, phase),
             width,
         );
-        ambient_lb.push_styled(banner, palette.ambient);
+        ambient_lb.push_styled(
+            banner,
+            if garden.is_dormant() {
+                palette.muted
+            } else {
+                palette.ambient
+            },
+        );
         out.push(ambient_lb.into_fitted(width, true));
     }
 
@@ -474,6 +500,7 @@ fn try_render_grid(
                     options,
                     &palette,
                     &box_chars,
+                    phase,
                 )
             } else {
                 (0..cell_h).map(|_| LineBuilder::default()).collect()
@@ -560,6 +587,7 @@ fn build_header_line(
     options: RenderOptions,
     palette: &SeasonPalette,
     box_chars: &BoxChars,
+    phase: u8,
 ) -> RenderedLine {
     let total_plots = garden.plots().len();
     let planted = garden.plots().iter().filter(|p| !p.is_empty()).count();
@@ -590,6 +618,21 @@ fn build_header_line(
         ),
         palette.foliage,
     );
+    if width >= 68 {
+        let tag = seasonal_header_tag(options.sprites, options.season, phase);
+        let tag_w = display_width(tag);
+        if lb.width + tag_w < width {
+            lb.push_plain(" ".repeat(width - lb.width - tag_w));
+            lb.push_styled(
+                tag,
+                if garden.is_dormant() {
+                    palette.muted
+                } else {
+                    palette.ambient
+                },
+            );
+        }
+    }
     lb.into_fitted(width, true)
 }
 
@@ -627,16 +670,17 @@ fn render_plot_cell(
     options: RenderOptions,
     palette: &SeasonPalette,
     box_chars: &BoxChars,
+    phase: u8,
 ) -> Vec<LineBuilder> {
     if cell_h >= 9 {
         render_spacious_cell(
             plot_index, plot, dormant, catalog, sprites, cell_w, cell_h, options, palette,
-            box_chars,
+            box_chars, phase,
         )
     } else if cell_h >= 6 {
         render_standard_cell(
             plot_index, plot, dormant, catalog, sprites, cell_w, cell_h, options, palette,
-            box_chars,
+            box_chars, phase,
         )
     } else if cell_h >= 4 {
         render_medium_cell(
@@ -740,10 +784,19 @@ fn render_medium_cell(
         let p_style = plant_style(hint, plant.stage, options.season, dormant);
         let name = species.map_or(plant.species_id.as_str(), |sp| sp.display_name.as_str());
         let badge = short_stage_tag(plant.stage, box_chars.bloom_mark);
+        let right = if dormant {
+            if cell_w >= 18 {
+                format!(" {badge} [Rest] ")
+            } else {
+                " [Rest] ".to_string()
+            }
+        } else {
+            format!(" {badge} ")
+        };
 
         lines.push(build_lr_line(
             &format!(" #{plot_num} {name}"),
-            &format!(" {badge} "),
+            &right,
             cell_w,
             if dormant {
                 palette.muted
@@ -775,6 +828,39 @@ fn render_medium_cell(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn render_standard_sprite_row(
+    row_idx: usize,
+    sprite_row: &str,
+    sprite_style: StyleSpec,
+    ambient_style: StyleSpec,
+    plot_index: usize,
+    cell_w: usize,
+    options: RenderOptions,
+    phase: u8,
+) -> LineBuilder {
+    let mut lb = LineBuilder::default();
+    if row_idx == 0 && cell_w >= 19 {
+        let (left_wing, right_wing) =
+            seasonal_cell_motes(options.sprites, options.season, plot_index, phase);
+        // 3 + 2 + 7 + 2 + 3 = 17 columns; (cell_w - 17) / 2 + 5 == (cell_w - 7) / 2
+        // for every cell_w >= 17, keeping row 0 aligned to the exact column of rows 1..=2.
+        let block_w = 17;
+        let left_pad = (cell_w - block_w) / 2;
+        let right_pad = cell_w - block_w - left_pad;
+        lb.push_plain(" ".repeat(left_pad));
+        lb.push_styled(left_wing, ambient_style);
+        lb.push_plain("  ");
+        lb.push_styled(sprite_row, sprite_style);
+        lb.push_plain("  ");
+        lb.push_styled(right_wing, ambient_style);
+        lb.push_plain(" ".repeat(right_pad));
+    } else {
+        lb.push_styled(pad_center_to_width(sprite_row, cell_w), sprite_style);
+    }
+    lb
+}
+
+#[allow(clippy::too_many_arguments)]
 fn render_standard_cell(
     plot_index: usize,
     plot: &Plot,
@@ -786,9 +872,15 @@ fn render_standard_cell(
     options: RenderOptions,
     palette: &SeasonPalette,
     box_chars: &BoxChars,
+    phase: u8,
 ) -> Vec<LineBuilder> {
     let plot_num = plot_index + 1;
     let mut lines = Vec::with_capacity(6);
+    let ambient_style = if dormant {
+        palette.muted
+    } else {
+        palette.ambient
+    };
 
     if let Some(plant) = plot.plant() {
         let species = catalog.get(&plant.species_id);
@@ -807,11 +899,22 @@ fn render_standard_cell(
             r_style,
         ));
 
-        // Rows 1..=3: 3x7 multi-line plant sprite centered.
-        for row in sprites.art_for(options.sprites, &plant.species_id, plant.stage) {
-            let mut lb = LineBuilder::default();
-            lb.push_styled(pad_center_to_width(row, cell_w), p_style);
-            lines.push(lb);
+        // Rows 1..=3: 3x7 multi-line plant sprite centered with subtle seasonal sky motes.
+        for (row_idx, row) in sprites
+            .art_for(options.sprites, &plant.species_id, plant.stage)
+            .into_iter()
+            .enumerate()
+        {
+            lines.push(render_standard_sprite_row(
+                row_idx,
+                row,
+                p_style,
+                ambient_style,
+                plot_index,
+                cell_w,
+                options,
+                phase,
+            ));
         }
 
         // Row 4: Planter pot rim centered beneath the 7-col sprite.
@@ -850,10 +953,17 @@ fn render_standard_cell(
         );
         lines.push(title);
 
-        for row in empty_plot_art(options.sprites) {
-            let mut lb = LineBuilder::default();
-            lb.push_styled(pad_center_to_width(row, cell_w), palette.soil);
-            lines.push(lb);
+        for (row_idx, row) in empty_plot_art(options.sprites).into_iter().enumerate() {
+            lines.push(render_standard_sprite_row(
+                row_idx,
+                row,
+                palette.soil,
+                ambient_style,
+                plot_index,
+                cell_w,
+                options,
+                phase,
+            ));
         }
 
         let mut pot_lb = LineBuilder::default();
@@ -883,10 +993,16 @@ fn render_spacious_cell(
     options: RenderOptions,
     palette: &SeasonPalette,
     box_chars: &BoxChars,
+    phase: u8,
 ) -> Vec<LineBuilder> {
     let plot_num = plot_index + 1;
     let mut lines = Vec::with_capacity(11);
     let (pot_top, pot_bottom) = wide_pot(options.sprites);
+    let ambient_style = if dormant {
+        palette.muted
+    } else {
+        palette.ambient
+    };
 
     if let Some(plant) = plot.plant() {
         let species = catalog.get(&plant.species_id);
@@ -927,18 +1043,17 @@ fn render_spacious_cell(
         );
         lines.push(sub_lb);
 
-        // Line 2: Canopy aura above blooming plants (blank otherwise, skipped if cell_h < 10).
+        // Line 2: Seasonal canopy sky sprite (`petals`, `fireflies`, `leaves`, `snow`).
         if cell_h >= 10 {
             let mut aura_lb = LineBuilder::default();
-            if plant.is_blooming() {
-                let aura = match options.sprites {
-                    SpriteSet::Unicode => "·   ∘   ·",
-                    SpriteSet::Ascii => ".   *   .",
-                };
-                aura_lb.push_styled(pad_center_to_width(aura, cell_w), palette.ambient);
-            } else {
-                aura_lb.push_plain(" ".repeat(cell_w));
-            }
+            let aura = seasonal_canopy_aura(
+                options.sprites,
+                options.season,
+                plant.is_blooming(),
+                plot_index,
+                phase,
+            );
+            aura_lb.push_styled(pad_center_to_width(aura, cell_w), ambient_style);
             lines.push(aura_lb);
         }
 
@@ -1025,7 +1140,11 @@ fn render_spacious_cell(
         lines.push(sub_lb);
 
         if cell_h >= 10 {
-            lines.push(LineBuilder::default());
+            let mut aura_lb = LineBuilder::default();
+            let aura =
+                seasonal_canopy_aura(options.sprites, options.season, false, plot_index, phase);
+            aura_lb.push_styled(pad_center_to_width(aura, cell_w), ambient_style);
+            lines.push(aura_lb);
         }
 
         for row in empty_plot_art(options.sprites) {

@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["summer", "spring"]
 seasonal_sprout_only = false
 color_hint = "gold"
-almanac_flavour = "Cheerful white-rimmed suns that lean toward every warm afternoon breeze."
+almanac_flavour = "Cheerful white-rimmed suns lean toward every patch of warm afternoon daylight. At dusk the petals fold gently inward, resting until tomorrow returns."
 
 [sprites.unicode]
 seed = " · "

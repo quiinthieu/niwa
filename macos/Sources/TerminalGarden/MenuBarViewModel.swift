@@ -79,6 +79,40 @@ public final class MenuBarViewModel {
         return snapshot?.glyph ?? "◌"
     }
 
+    /// Explicit non-color state badges displayed in the menu bar popover header (`PLAN.md` §10 T16).
+    public var activeStateBadges: [String] {
+        var badges: [String] = []
+        if snapshot?.dormant == true {
+            badges.append("Resting")
+        }
+        if signalsPaused {
+            badges.append("Signals Paused")
+        }
+        return badges
+    }
+
+    /// Spoken VoiceOver summary for the `MenuBarExtra` status item (`PLAN.md` §4.3 & §10 T16).
+    public var menuBarAccessibilityLabel: String {
+        var parts: [String] = [metadata.displayName]
+        if let season = snapshot?.season {
+            parts.append(season.displayName)
+        }
+        if var summary = snapshot?.summary, !summary.isEmpty {
+            for suffix in [" · resting", " - resting"] where summary.hasSuffix(suffix) {
+                summary.removeLast(suffix.count)
+            }
+            parts.append(summary)
+        }
+        parts.append(contentsOf: activeStateBadges)
+        return parts.joined(separator: ", ")
+    }
+
+    /// Non-color-only snapshot error message carrying an explicit `"Error: "` prefix (`PLAN.md` §10 T16).
+    public var formattedSnapshotError: String? {
+        guard let raw = snapshotError, !raw.isEmpty else { return nil }
+        return raw.hasPrefix("Error:") ? raw : "Error: \(raw)"
+    }
+
     /// Homebrew install command surfaced when `niwa` is absent (`PLAN.md` §1.1 G6 & §10 T14 AC 2).
     public var missingNiwaInstallCommand: String {
         "brew install quiinthieu/tap/\(metadata.homebrewFormula)"

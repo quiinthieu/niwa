@@ -7,7 +7,7 @@ growth_multiplier = 0.9
 preferred_seasons = ["winter"]
 seasonal_sprout_only = true
 color_hint = "blue"
-almanac_flavour = "Crystalline chime-blossoms that sprout only when winter hush settles over the garden."
+almanac_flavour = "Crystalline chime-blossoms sprout only when deep winter hush settles over the garden. On clear nights each translucent bell catches pale moonlight like blown glass."
 
 [sprites.unicode]
 seed = " · "

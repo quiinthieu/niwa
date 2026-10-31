@@ -7,7 +7,7 @@ growth_multiplier = 0.95
 preferred_seasons = ["summer"]
 seasonal_sprout_only = false
 color_hint = "pink"
-almanac_flavour = "Broad water-beaded pads lifting a serene lantern blossom above a shallow ceramic bowl."
+almanac_flavour = "Broad water-beaded pads lift a serene lantern blossom above a shallow glazed bowl. Raindrops roll across its velvety leaves like beads of quicksilver."
 
 [sprites.unicode]
 seed = " · "

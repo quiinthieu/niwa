@@ -13,8 +13,8 @@ pub use glyph::{
     compact_glyph, most_advanced_stage, prompt_emoji_glyph, stage_from_glyph, stage_glyph,
 };
 pub use layout::{
-    render_compact_frame, render_garden, LayoutKind, RenderOptions, RenderedFrame, RenderedLine,
-    StyledSpan, Viewport, MIN_GRID_HEIGHT, MIN_GRID_WIDTH,
+    render_compact_frame, render_garden, render_garden_with_phase, LayoutKind, RenderOptions,
+    RenderedFrame, RenderedLine, StyledSpan, Viewport, MIN_GRID_HEIGHT, MIN_GRID_WIDTH,
 };
 pub use palette::{plant_style, rarity_style, SeasonPalette};
 pub use sprites::{SpriteBank, SpriteLoadError, SPRITE_ART_HEIGHT, SPRITE_ART_WIDTH};

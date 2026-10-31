@@ -18,9 +18,10 @@ struct NiwaMenuBarApp: App {
             if viewModel.showMenuBarTitle, !viewModel.menuBarTitle.isEmpty {
                 Text(viewModel.menuBarTitle)
                     .font(.system(.body, design: .monospaced))
+                    .accessibilityLabel(viewModel.menuBarAccessibilityLabel)
             } else {
                 Image(systemName: "leaf")
-                    .accessibilityLabel(viewModel.metadata.displayName)
+                    .accessibilityLabel(viewModel.menuBarAccessibilityLabel)
             }
         }
         .menuBarExtraStyle(.window)

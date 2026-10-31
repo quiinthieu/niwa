@@ -7,7 +7,7 @@ growth_multiplier = 0.95
 preferred_seasons = ["winter"]
 seasonal_sprout_only = false
 color_hint = "crimson"
-almanac_flavour = "Glossy evergreen leaves framing deep rose rosettes against midwinter snow."
+almanac_flavour = "Glossy evergreen leaves frame deep rose rosettes against midwinter snow. Its waxy petals unfurl unhurriedly while frost gathers along the windowsill."
 
 [sprites.unicode]
 seed = " · "

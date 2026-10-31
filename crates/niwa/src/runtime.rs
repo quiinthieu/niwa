@@ -15,7 +15,7 @@ use tg_core::season::{resolve_season, Season};
 use tg_core::sim::Garden;
 use tg_core::species::{Rarity, SpeciesCatalog, SpriteSet};
 use tg_render::{
-    compact_glyph, detect_color_tier, render_compact_frame, render_garden, ColorEnv,
+    compact_glyph, detect_color_tier, render_compact_frame, render_garden_with_phase, ColorEnv,
     ColorPreference, ColorTier, RenderOptions, RenderedFrame, SpriteBank, Viewport,
 };
 use tg_signals::evaluator::evaluate_work_events;
@@ -58,7 +58,7 @@ impl std::fmt::Display for ActionError {
             }
             Self::PlotNotBlooming { plot_index, stage } => write!(
                 f,
-                "plot {} is {:?} — wait until it is blooming to harvest",
+                "plot {} is {:?} - wait until it is blooming to harvest",
                 plot_index + 1,
                 stage
             ),
@@ -857,7 +857,7 @@ impl GardenSession {
         Ok(())
     }
 
-    /// Renders a single garden frame for `niwa peek` or the TUI canvas.
+    /// Renders a single garden frame for `niwa peek` or the TUI canvas at resting phase `0`.
     #[must_use]
     pub fn render_frame(
         &self,
@@ -865,17 +865,30 @@ impl GardenSession {
         sprites_override: Option<SpriteSet>,
         color_tier: ColorTier,
     ) -> RenderedFrame {
+        self.render_frame_with_phase(viewport, sprites_override, color_tier, 0)
+    }
+
+    /// Renders a single garden frame with seasonal ambient particle `phase` (`0..4`; PLAN §4.2 & §10 T16).
+    #[must_use]
+    pub fn render_frame_with_phase(
+        &self,
+        viewport: Viewport,
+        sprites_override: Option<SpriteSet>,
+        color_tier: ColorTier,
+        phase: u8,
+    ) -> RenderedFrame {
         let options = RenderOptions {
             sprites: sprites_override.unwrap_or(self.config.sprites),
             color: color_tier,
             season: self.current_season(),
         };
-        render_garden(
+        render_garden_with_phase(
             &self.garden,
             &self.catalog,
             &self.sprites,
             viewport,
             options,
+            phase,
         )
     }
 
@@ -885,7 +898,7 @@ impl GardenSession {
         let season = self.current_season();
         let glyph = compact_glyph(&self.garden, self.config.sprites).to_string();
         let (planted_count, blooming_count, summary) =
-            summarize_garden(&self.garden, self.garden.plots().len());
+            summarize_garden(&self.garden, self.garden.plots().len(), self.config.sprites);
 
         let plots = self
             .garden
@@ -980,7 +993,7 @@ pub fn format_status_human(report: &StatusReport, catalog: &SpeciesCatalog) -> S
     let state_note = if report.dormant { " (resting)" } else { "" };
     let _ = writeln!(
         out,
-        "{} v{} {} — {}{state_note}",
+        "{} v{} {} - {}{state_note}",
         product::DISPLAY_NAME,
         report.app_version,
         report.glyph,
@@ -1065,7 +1078,11 @@ fn sync_almanac(save: &mut GardenSave, garden: &Garden, now: Timestamp) {
     }
 }
 
-fn summarize_garden(garden: &Garden, total_plots: usize) -> (usize, usize, String) {
+fn summarize_garden(
+    garden: &Garden,
+    total_plots: usize,
+    sprites: SpriteSet,
+) -> (usize, usize, String) {
     let mut planted = 0_usize;
     let mut blooming = 0_usize;
     for plot in garden.plots() {
@@ -1076,10 +1093,14 @@ fn summarize_garden(garden: &Garden, total_plots: usize) -> (usize, usize, Strin
             }
         }
     }
+    let sep = match sprites {
+        SpriteSet::Unicode => " · ",
+        SpriteSet::Ascii => " - ",
+    };
     let summary = if garden.is_dormant() {
-        format!("{planted}/{total_plots} planted · {blooming} blooming · resting")
+        format!("{planted}/{total_plots} planted{sep}{blooming} blooming{sep}resting")
     } else {
-        format!("{planted}/{total_plots} planted · {blooming} blooming")
+        format!("{planted}/{total_plots} planted{sep}{blooming} blooming")
     };
     (planted, blooming, summary)
 }
@@ -1093,7 +1114,8 @@ fn build_snapshot(
     updated_at: Timestamp,
 ) -> Snapshot {
     let glyph = compact_glyph(garden, config.sprites);
-    let (planted_count, blooming_count, summary) = summarize_garden(garden, garden.plots().len());
+    let (planted_count, blooming_count, summary) =
+        summarize_garden(garden, garden.plots().len(), config.sprites);
     let compact_frame = render_compact_frame(garden, catalog, sprites, config.sprites, season);
 
     let mut snap = Snapshot::new(glyph, summary, season, compact_frame, updated_at);

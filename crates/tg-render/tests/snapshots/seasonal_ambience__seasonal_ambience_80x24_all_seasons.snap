@@ -1,0 +1,211 @@
+---
+source: crates/tg-render/tests/seasonal_ambience.rs
+expression: "combined_80x24.join(\"\\n\\n\")"
+---
+=== 80x24 spring unicode (phase 1) ===
+ ◈ Niwa · Spring · 7/9 planted · 3 blooming                 ∘ · spring petals ∘ 
+┌──────────────────────────┬─────────────────────────┬─────────────────────────┐
+│ #1 Sakura Bonsai     [M] │ #2 English Lavender [U] │ #3 Dwarf Red Maple  [R] │
+│          ░▓◈▓░    ·      │           ╵║╵     ∘     │     ·    ▓▒◈▒▓          │
+│          ·╭┼╯·           │           ║│║           │          ╰┬┼┬╯          │
+│           ─┴─            │           ─┴─           │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [███░░░] │ Blooming ◈     [██████] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #4 Starlight Frostbe [M] │ #5 (empty plot)         │ #6 Wild Chamomile   [C] │
+│     ∘    ╭┬◈┬╮           │                   ·     │            ╷      ∘     │
+│          ◈│░│◈           │          · · ·          │           ╴┼╶           │
+│           ─┴─            │          ─────          │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │     ready to plant      │ Young          [███░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #7 Pond Lotus        [R] │ #8 Winter Snowdrop  [U] │ #9 (empty plot)         │
+│     ·     ╭◎╮            │     ∘                   │                   ·     │
+│          ╭─┴─╮           │           ╭╴            │          · · ·          │
+│          ═════           │           ┴──           │          ─────          │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Mature          [███░░░] │ Sprout         [████░░] │     ready to plant      │
+└──────────────────────────┴─────────────────────────┴─────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 spring ascii (phase 1) ===
+ * Niwa - Spring - 7/9 planted - 3 blooming                 o . spring petals o 
++--------------------------+-------------------------+-------------------------+
+| #1 Sakura Bonsai     [M] | #2 English Lavender [U] | #3 Dwarf Red Maple  [R] |
+|          .*#*.    .      |           i|i     o     |     .    #*T*#          |
+|          .(+/.           |           |||           |          \+|+/          |
+|           -+-            |           -+-           |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] | Mature         [###...] | Blooming *     [######] |
++--------------------------+-------------------------+-------------------------+
+| #4 Starlight Frostbe [M] | #5 (empty plot)         | #6 Wild Chamomile   [C] |
+|     o    /T*T\           |                   .     |            ,      o     |
+|          *|:|*           |          . . .          |           -+-           |
+|           -+-            |          -----          |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] |     ready to plant      | Young          [###...] |
++--------------------------+-------------------------+-------------------------+
+| #7 Pond Lotus        [R] | #8 Winter Snowdrop  [U] | #9 (empty plot)         |
+|     .     (o)            |     o                   |                   .     |
+|          (_|_)           |           /-            |          . . .          |
+|          =====           |           +--           |          -----          |
+|         \_____/          |         \_____/         |         \_____/         |
+| Mature          [###...] | Sprout         [####..] |     ready to plant      |
++--------------------------+-------------------------+-------------------------+
+ Glyph * - State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 summer unicode (phase 1) ===
+ ◈ Niwa · Summer · 7/9 planted · 3 blooming              • · summer fireflies • 
+┌──────────────────────────┬─────────────────────────┬─────────────────────────┐
+│ #1 Sakura Bonsai     [M] │ #2 English Lavender [U] │ #3 Dwarf Red Maple  [R] │
+│          ░▓◈▓░    ·      │           ╵║╵     •     │     ·    ▓▒◈▒▓          │
+│          ·╭┼╯·           │           ║│║           │          ╰┬┼┬╯          │
+│           ─┴─            │           ─┴─           │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [███░░░] │ Blooming ◈     [██████] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #4 Starlight Frostbe [M] │ #5 (empty plot)         │ #6 Wild Chamomile   [C] │
+│     •    ╭┬◈┬╮           │                   ·     │            ╷      •     │
+│          ◈│░│◈           │          · · ·          │           ╴┼╶           │
+│           ─┴─            │          ─────          │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │     ready to plant      │ Young          [███░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #7 Pond Lotus        [R] │ #8 Winter Snowdrop  [U] │ #9 (empty plot)         │
+│     ·     ╭◎╮            │     •                   │                   ·     │
+│          ╭─┴─╮           │           ╭╴            │          · · ·          │
+│          ═════           │           ┴──           │          ─────          │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Mature          [███░░░] │ Sprout         [████░░] │     ready to plant      │
+└──────────────────────────┴─────────────────────────┴─────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 summer ascii (phase 1) ===
+ * Niwa - Summer - 7/9 planted - 3 blooming              * . summer fireflies * 
++--------------------------+-------------------------+-------------------------+
+| #1 Sakura Bonsai     [M] | #2 English Lavender [U] | #3 Dwarf Red Maple  [R] |
+|          .*#*.    .      |           i|i     *     |     .    #*T*#          |
+|          .(+/.           |           |||           |          \+|+/          |
+|           -+-            |           -+-           |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] | Mature         [###...] | Blooming *     [######] |
++--------------------------+-------------------------+-------------------------+
+| #4 Starlight Frostbe [M] | #5 (empty plot)         | #6 Wild Chamomile   [C] |
+|     *    /T*T\           |                   .     |            ,      *     |
+|          *|:|*           |          . . .          |           -+-           |
+|           -+-            |          -----          |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] |     ready to plant      | Young          [###...] |
++--------------------------+-------------------------+-------------------------+
+| #7 Pond Lotus        [R] | #8 Winter Snowdrop  [U] | #9 (empty plot)         |
+|     .     (o)            |     *                   |                   .     |
+|          (_|_)           |           /-            |          . . .          |
+|          =====           |           +--           |          -----          |
+|         \_____/          |         \_____/         |         \_____/         |
+| Mature          [###...] | Sprout         [####..] |     ready to plant      |
++--------------------------+-------------------------+-------------------------+
+ Glyph * - State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 autumn unicode (phase 1) ===
+ ◈ Niwa · Autumn · 7/9 planted · 3 blooming                 ◇ · autumn leaves ◇ 
+┌──────────────────────────┬─────────────────────────┬─────────────────────────┐
+│ #1 Sakura Bonsai     [M] │ #2 English Lavender [U] │ #3 Dwarf Red Maple  [R] │
+│          ░▓◈▓░    ·      │           ╵║╵     ◇     │     ·    ▓▒◈▒▓          │
+│          ·╭┼╯·           │           ║│║           │          ╰┬┼┬╯          │
+│           ─┴─            │           ─┴─           │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [███░░░] │ Blooming ◈     [██████] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #4 Starlight Frostbe [M] │ #5 (empty plot)         │ #6 Wild Chamomile   [C] │
+│     ◇    ╭┬◈┬╮           │                   ·     │            ╷      ◇     │
+│          ◈│░│◈           │          · · ·          │           ╴┼╶           │
+│           ─┴─            │          ─────          │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │     ready to plant      │ Young          [███░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #7 Pond Lotus        [R] │ #8 Winter Snowdrop  [U] │ #9 (empty plot)         │
+│     ·     ╭◎╮            │     ◇                   │                   ·     │
+│          ╭─┴─╮           │           ╭╴            │          · · ·          │
+│          ═════           │           ┴──           │          ─────          │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Mature          [███░░░] │ Sprout         [████░░] │     ready to plant      │
+└──────────────────────────┴─────────────────────────┴─────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 autumn ascii (phase 1) ===
+ * Niwa - Autumn - 7/9 planted - 3 blooming                 ~ . autumn leaves ~ 
++--------------------------+-------------------------+-------------------------+
+| #1 Sakura Bonsai     [M] | #2 English Lavender [U] | #3 Dwarf Red Maple  [R] |
+|          .*#*.    /      |           i|i     ~     |     /    #*T*#          |
+|          .(+/.           |           |||           |          \+|+/          |
+|           -+-            |           -+-           |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] | Mature         [###...] | Blooming *     [######] |
++--------------------------+-------------------------+-------------------------+
+| #4 Starlight Frostbe [M] | #5 (empty plot)         | #6 Wild Chamomile   [C] |
+|     ~    /T*T\           |                   /     |            ,      ~     |
+|          *|:|*           |          . . .          |           -+-           |
+|           -+-            |          -----          |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] |     ready to plant      | Young          [###...] |
++--------------------------+-------------------------+-------------------------+
+| #7 Pond Lotus        [R] | #8 Winter Snowdrop  [U] | #9 (empty plot)         |
+|     /     (o)            |     ~                   |                   /     |
+|          (_|_)           |           /-            |          . . .          |
+|          =====           |           +--           |          -----          |
+|         \_____/          |         \_____/         |         \_____/         |
+| Mature          [###...] | Sprout         [####..] |     ready to plant      |
++--------------------------+-------------------------+-------------------------+
+ Glyph * - State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 winter unicode (phase 1) ===
+ ◈ Niwa · Winter · 7/9 planted · 3 blooming                   ° · winter snow ° 
+┌──────────────────────────┬─────────────────────────┬─────────────────────────┐
+│ #1 Sakura Bonsai     [M] │ #2 English Lavender [U] │ #3 Dwarf Red Maple  [R] │
+│          ░▓◈▓░    ◌      │           ╵║╵     °     │     ◌    ▓▒◈▒▓          │
+│          ·╭┼╯·           │           ║│║           │          ╰┬┼┬╯          │
+│           ─┴─            │           ─┴─           │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [███░░░] │ Blooming ◈     [██████] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #4 Starlight Frostbe [M] │ #5 (empty plot)         │ #6 Wild Chamomile   [C] │
+│     °    ╭┬◈┬╮           │                   ◌     │            ╷      °     │
+│          ◈│░│◈           │          · · ·          │           ╴┼╶           │
+│           ─┴─            │          ─────          │           ─┴─           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │     ready to plant      │ Young          [███░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #7 Pond Lotus        [R] │ #8 Winter Snowdrop  [U] │ #9 (empty plot)         │
+│     ◌     ╭◎╮            │     °                   │                   ◌     │
+│          ╭─┴─╮           │           ╭╴            │          · · ·          │
+│          ═════           │           ┴──           │          ─────          │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Mature          [███░░░] │ Sprout         [████░░] │     ready to plant      │
+└──────────────────────────┴─────────────────────────┴─────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)                
+
+=== 80x24 winter ascii (phase 1) ===
+ * Niwa - Winter - 7/9 planted - 3 blooming                   * . winter snow * 
++--------------------------+-------------------------+-------------------------+
+| #1 Sakura Bonsai     [M] | #2 English Lavender [U] | #3 Dwarf Red Maple  [R] |
+|          .*#*.    .      |           i|i     *     |     .    #*T*#          |
+|          .(+/.           |           |||           |          \+|+/          |
+|           -+-            |           -+-           |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] | Mature         [###...] | Blooming *     [######] |
++--------------------------+-------------------------+-------------------------+
+| #4 Starlight Frostbe [M] | #5 (empty plot)         | #6 Wild Chamomile   [C] |
+|     *    /T*T\           |                   .     |            ,      *     |
+|          *|:|*           |          . . .          |           -+-           |
+|           -+-            |          -----          |           -+-           |
+|         \_____/          |         \_____/         |         \_____/         |
+| Blooming *      [######] |     ready to plant      | Young          [###...] |
++--------------------------+-------------------------+-------------------------+
+| #7 Pond Lotus        [R] | #8 Winter Snowdrop  [U] | #9 (empty plot)         |
+|     .     (o)            |     *                   |                   .     |
+|          (_|_)           |           /-            |          . . .          |
+|          =====           |           +--           |          -----          |
+|         \_____/          |         \_____/         |         \_____/         |
+| Mature          [###...] | Sprout         [####..] |     ready to plant      |
++--------------------------+-------------------------+-------------------------+
+ Glyph * - State: Growing quietly (plants rest safely when away)

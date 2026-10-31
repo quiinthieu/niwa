@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["summer"]
 seasonal_sprout_only = false
 color_hint = "violet"
-almanac_flavour = "Slender silver-green spires carrying a calm scent through long summer coding sessions."
+almanac_flavour = "Slender silver-green spires carry a calm herbal hush through long summer afternoons. Brushing past the terracotta rim releases a soft dusk-colored aroma."
 
 [sprites.unicode]
 seed = " · "

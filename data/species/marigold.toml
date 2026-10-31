@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["autumn"]
 seasonal_sprout_only = false
 color_hint = "amber"
-almanac_flavour = "Ruffled copper-orange pom-poms holding onto autumn's last golden light."
+almanac_flavour = "Ruffled copper-orange pom-poms hold onto autumn's last slant of golden light. Their spicy-warm scent lingers around the planter well into cool October evenings."
 
 [sprites.unicode]
 seed = " · "

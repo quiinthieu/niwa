@@ -7,7 +7,7 @@ growth_multiplier = 0.9
 preferred_seasons = ["summer"]
 seasonal_sprout_only = true
 color_hint = "amber"
-almanac_flavour = "Radiant saffron petals perched on aerial roots, waking only in high summer warmth."
+almanac_flavour = "Radiant saffron petals perch on silver aerial roots, waking only in high summer warmth. It drinks ambient humidity from the air and blooms like a captured sunrise."
 
 [sprites.unicode]
 seed = " · "

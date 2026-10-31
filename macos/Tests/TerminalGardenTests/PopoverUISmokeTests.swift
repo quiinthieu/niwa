@@ -140,4 +140,69 @@ final class PopoverUISmokeTests: XCTestCase {
             XCTAssertGreaterThan(bitmap.pixelsHigh, 0)
         }
     }
+
+    @MainActor
+    func testPopoverExposesNonColorBadgesErrorPrefixesAndAccessibilityLabels() throws {
+        let fm = FileManager.default
+        let tempRoot = fm.temporaryDirectory
+            .appendingPathComponent("niwa-ui-a11y-\(UUID().uuidString)", isDirectory: true)
+        let binDir = tempRoot.appendingPathComponent("bin", isDirectory: true)
+        let niwaHome = tempRoot.appendingPathComponent("home", isDirectory: true)
+        try fm.createDirectory(at: binDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: niwaHome, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tempRoot) }
+
+        let metadata = ProductMetadata.current
+        let logFile = tempRoot.appendingPathComponent("ui-a11y.log")
+        let stubURL = binDir.appendingPathComponent(metadata.cliBin)
+        try NiwaCLIWrapperTests.installStubBinary(at: stubURL, logFile: logFile)
+
+        let paths = NiwaDataPaths(dataDirectory: niwaHome)
+        try Data("""
+        {
+          "schema_version": 1,
+          "glyph": ".",
+          "summary": "2/8 planted - 0 blooming - resting",
+          "season": "winter",
+          "compact_frame": "* Niwa - Winter [Dormant] - 2/8 planted",
+          "updated_at": 1752000100,
+          "dormant": true,
+          "planted_count": 2,
+          "blooming_count": 0
+        }
+        """.utf8).write(to: paths.snapshotFile)
+
+        let cli = ProcessNiwaCLI(
+            environment: ["NIWA_HOME": niwaHome.path, "NIWA_BIN": stubURL.path],
+            homeDirectory: tempRoot,
+            metadata: metadata,
+            includeStandardDirectories: false
+        )
+        let viewModel = MenuBarViewModel(
+            paths: paths,
+            cli: cli,
+            idleSampler: FakeIdleSampler(nextIdleSeconds: 10.0),
+            loginItemManager: FakeLoginItemManager(),
+            terminalLauncher: SpyTerminalLauncher(),
+            metadata: metadata,
+            nowProvider: { 1_752_000_110 }
+        )
+        viewModel.syncFromSystem()
+        viewModel.togglePauseSignals()
+
+        XCTAssertEqual(viewModel.activeStateBadges, ["Resting", "Signals Paused"])
+        XCTAssertTrue(viewModel.menuBarAccessibilityLabel.contains(metadata.displayName))
+        XCTAssertTrue(viewModel.menuBarAccessibilityLabel.contains("Resting"))
+        XCTAssertTrue(viewModel.menuBarAccessibilityLabel.contains("Signals Paused"))
+
+        // Corrupt snapshot.json to verify snapshot error uses explicit non-color "Error:" prefix.
+        try Data("{ invalid json".utf8).write(to: paths.snapshotFile)
+        viewModel.reloadSnapshotFromDisk()
+        XCTAssertEqual(viewModel.formattedSnapshotError?.hasPrefix("Error: "), true)
+
+        let hostingView = NSHostingView(rootView: MenuBarPopoverView(viewModel: viewModel) {})
+        hostingView.frame = NSRect(x: 0, y: 0, width: 344, height: 460)
+        hostingView.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(hostingView.fittingSize.height, 200)
+    }
 }

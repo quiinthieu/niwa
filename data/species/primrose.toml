@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["spring"]
 seasonal_sprout_only = false
 color_hint = "gold"
-almanac_flavour = "Pale yellow cups that unfurl just as the late-afternoon terminal glow settles in."
+almanac_flavour = "Pale lemon cups unfurl in slow motion just as the late-afternoon terminal glow settles in. Each delicate petal glows like thin lantern paper against young spring leaves."
 
 [sprites.unicode]
 seed = " · "

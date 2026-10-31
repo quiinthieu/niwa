@@ -7,7 +7,7 @@ growth_multiplier = 0.95
 preferred_seasons = ["spring"]
 seasonal_sprout_only = false
 color_hint = "frost"
-almanac_flavour = "Tiny porcelain bells nodding along a single arching stem in cool spring shade."
+almanac_flavour = "Tiny porcelain bells nod in neat succession along a single arching stem in cool spring shade. Broad twin leaves shelter the blossoms like a quiet green umbrella."
 
 [sprites.unicode]
 seed = " · "

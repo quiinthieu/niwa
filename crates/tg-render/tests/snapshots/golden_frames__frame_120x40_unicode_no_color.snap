@@ -2,12 +2,12 @@
 source: crates/tg-render/tests/golden_frames.rs
 expression: escape_ansi_for_snapshot(&raw)
 ---
- ◈ Niwa · Spring · 7/9 planted · 2 blooming                                                                             
+ ◈ Niwa · Spring · 7/9 planted · 2 blooming                                                         · ∘ spring petals · 
                                           · ∘ · ░ spring petals drifting · ∘ ·                                          
 ┌───────────────────────────────────────┬───────────────────────────────────────┬──────────────────────────────────────┐
 │ #1 · Sakura Bonsai             mythic │ #2 · Meadow Daisy              common │ #3 · Lily of the Valley         rare │
 │   · In full bloom ◈ ready to harvest  │   · Growing steadily                  │   · Growing steadily                 │
-│               ·   ∘   ·               │                                       │                                      │
+│               · ∘ ░ ∘ ·               │                   ·                   │                     ∘                │
 │                 ░▓◈▓░                 │                   ◎                   │                 ╭─╮                  │
 │                 ·╭┼╯·                 │                  ├│┤                  │                 │ ∘                  │
 │                  ─┴─                  │                  ─┴─                  │                 ┴──                  │
@@ -19,7 +19,7 @@ expression: escape_ansi_for_snapshot(&raw)
 ├───────────────────────────────────────┼───────────────────────────────────────┼──────────────────────────────────────┤
 │ #4 · White Clover              common │ #5 · Empty Plot                    -- │ #6 · Evening Primrose       uncommon │
 │   · Growing steadily                  │   · Soil rested & ready               │   · Growing steadily                 │
-│                                       │                                       │                                      │
+│                 ·   ∘                 │                ∘                      │                  ·                   │
 │                                       │                                       │                                      │
 │                  ╭╷╮                  │                 · · ·                 │                                      │
 │                  ─┴─                  │                 ─────                 │                 ·•·                  │
@@ -31,7 +31,7 @@ expression: escape_ansi_for_snapshot(&raw)
 ├───────────────────────────────────────┼───────────────────────────────────────┼──────────────────────────────────────┤
 │ #7 · Dwarf Red Maple             rare │ #8 · Cushion Moss              common │ #9 · Empty Plot                   -- │
 │   · In full bloom ◈ ready to harvest  │   · Growing steadily                  │   · Soil rested & ready              │
-│               ·   ∘   ·               │                                       │                                      │
+│               · ∘ ░ ∘ ·               │                 ·   ∘                 │               ∘                      │
 │                 ▓▒◈▒▓                 │                  ░░░                  │                                      │
 │                 ╰┬┼┬╯                 │                 ▄███▄                 │                · · ·                 │
 │                  ─┴─                  │                 █████                 │                ─────                 │

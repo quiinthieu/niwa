@@ -19,8 +19,8 @@ public struct SettingsView: View {
                     missingBinaryBanner
                 }
 
-                if let errorText = viewModel.errorMessage, !errorText.isEmpty {
-                    Text(errorText)
+                if let errorText = viewModel.formattedErrorMessage {
+                    Label(errorText, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.red)
                         .padding(10)
