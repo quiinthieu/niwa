@@ -1,9 +1,11 @@
 //! tg-signals: Opt-in work signal consent disclosures, collection gate, activity idle sampler,
-//! and diminishing-returns water-cap evaluator (PLAN §3.1, §4.1, §5 & §10 T09–T10).
+//! read-only git log poller, and diminishing-returns water-cap evaluator
+//! (PLAN §3.1, §4.1, §5 & §10 T09–T11).
 
 pub mod activity;
 pub mod consent;
 pub mod evaluator;
+pub mod git;
 
 pub use tg_store::config::{ParseSignalKindError, SignalConsent, SignalKind, SignalsConfig};
 pub use tg_store::save::{GitPollState, WaterBudgetState};

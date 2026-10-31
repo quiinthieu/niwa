@@ -294,7 +294,7 @@ pub fn run_signals_with_io(
     writer: &mut dyn Write,
 ) -> anyhow::Result<()> {
     let config_store = ConfigStore::new(paths.clone());
-    let spool = EventSpool::new(paths);
+    let spool = EventSpool::new(paths.clone());
     let catalog = ConsentCatalog::load_default();
 
     match args.action.unwrap_or(SignalsCommand::List) {
@@ -375,6 +375,9 @@ pub fn run_signals_with_io(
 
             if purge {
                 let outcome = spool.purge_signal(kind)?;
+                if kind == SignalKind::Git {
+                    GardenStore::new(paths.clone()).clear_git_poll_state()?;
+                }
                 writeln!(
                     writer,
                     "Disabled signal '{}' and purged {} queued event(s).",

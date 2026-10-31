@@ -8,6 +8,7 @@ use std::time::Duration;
 use tg_core::clock::{Clock, TICK_SECS};
 use tg_signals::activity::{sample_and_record_activity, ActivitySampleOutcome, IdleSource};
 use tg_signals::consent::{any_signal_enabled, is_signal_enabled};
+use tg_signals::git::{GitLogRunner, GitPollMode, ProcessGitLogRunner};
 use tg_signals::{EventSpool, SignalKind};
 use tg_store::config::ConfigStore;
 use tg_store::daemon_units::{
@@ -74,7 +75,7 @@ pub struct DaemonRunSummary {
     pub idle_samples_recorded: u64,
 }
 
-/// Runs the 60-second `niwa daemon` loop (`PLAN.md` §3.4, §7 & §10 T10).
+/// Runs the 60-second `niwa daemon` loop (`PLAN.md` §3.4, §7 & §10 T10–T11).
 ///
 /// Before acquiring `garden.lock`, polling [`IdleSource`], touching `garden.json`, or sleeping,
 /// loads `config.toml` and verifies [`any_signal_enabled`]. When no signal is enabled, returns
@@ -84,6 +85,26 @@ pub fn run_daemon_loop(
     paths: NiwaPaths,
     clock: &dyn Clock,
     idle_source: &dyn IdleSource,
+    sleeper: &dyn DaemonSleeper,
+    max_wakes: Option<u64>,
+) -> Result<DaemonRunSummary, StoreError> {
+    run_daemon_loop_with_git(
+        paths,
+        clock,
+        idle_source,
+        &ProcessGitLogRunner::default(),
+        sleeper,
+        max_wakes,
+    )
+}
+
+/// Variant of [`run_daemon_loop`] accepting an injected [`GitLogRunner`] so integration tests can
+/// assert the 5-minute periodic `git log` throttle across 60-second daemon wakes.
+pub fn run_daemon_loop_with_git(
+    paths: NiwaPaths,
+    clock: &dyn Clock,
+    idle_source: &dyn IdleSource,
+    git_runner: &dyn GitLogRunner,
     sleeper: &dyn DaemonSleeper,
     max_wakes: Option<u64>,
 ) -> Result<DaemonRunSummary, StoreError> {
@@ -142,7 +163,13 @@ pub fn run_daemon_loop(
             }
         }
 
-        let session = GardenSession::open(paths.clone(), clock, None)?;
+        let session = GardenSession::open_with_git(
+            paths.clone(),
+            clock,
+            None,
+            GitPollMode::PeriodicInterval,
+            git_runner,
+        )?;
         if let Some(notice) = session.recovery_notice() {
             eprintln!("warning: {notice}");
         }
