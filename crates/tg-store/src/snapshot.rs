@@ -7,11 +7,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::io;
-use tg_core::clock::Timestamp;
+use tg_core::clock::{Timestamp, TICK_SECS};
 use tg_core::season::Season;
 
 /// Current `snapshot.json` schema version (v1).
 pub const CURRENT_SNAPSHOT_SCHEMA_VERSION: u32 = 1;
+
+/// Freshness window (`< 60 s`, matching one garden tick) within which `niwa prompt` reads
+/// `snapshot.json` directly without acquiring `garden.lock` or running catch-up (`PLAN.md` §3.4 & T13).
+pub const SNAPSHOT_MAX_AGE_SECS: u64 = TICK_SECS as u64;
 
 /// Compact versioned snapshot written after state updates and read by prompt/menu-bar surfaces.
 ///
@@ -52,6 +56,20 @@ impl Snapshot {
             planted_count: 0,
             blooming_count: 0,
         }
+    }
+
+    /// Returns `true` when `now` is less than `max_age_secs` after `self.updated_at`
+    /// (`PLAN.md` §3.4: `niwa prompt` only reads a snapshot `< 60 s` old without simulation).
+    ///
+    /// Backward wall-clock skew (`now < self.updated_at`) saturates elapsed age to `0` so
+    /// `niwa prompt` remains on the lock-free read-only fast path without thrashing catch-up.
+    #[must_use]
+    pub fn is_fresh(&self, now: Timestamp, max_age_secs: u64) -> bool {
+        let delta = now
+            .as_unix_secs()
+            .saturating_sub(self.updated_at.as_unix_secs());
+        let elapsed = u64::try_from(delta.max(0)).unwrap_or(u64::MAX);
+        elapsed < max_age_secs
     }
 }
 

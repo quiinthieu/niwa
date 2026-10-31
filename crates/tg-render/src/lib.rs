@@ -9,7 +9,9 @@ pub mod sprites;
 pub mod width;
 
 pub use color::{detect_color_tier, ColorEnv, ColorPreference, ColorTier, StyleSpec};
-pub use glyph::{compact_glyph, most_advanced_stage, prompt_emoji_glyph, stage_glyph};
+pub use glyph::{
+    compact_glyph, most_advanced_stage, prompt_emoji_glyph, stage_from_glyph, stage_glyph,
+};
 pub use layout::{
     render_compact_frame, render_garden, LayoutKind, RenderOptions, RenderedFrame, RenderedLine,
     StyledSpan, Viewport, MIN_GRID_HEIGHT, MIN_GRID_WIDTH,

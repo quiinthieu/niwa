@@ -6,7 +6,9 @@ use tg_core::model::Stage;
 use tg_core::sim::{Garden, TickInput};
 use tg_core::species::{is_forbidden_emoji_char, SpeciesCatalog, SpriteSet};
 use tg_render::color::{detect_color_tier, ColorEnv, ColorPreference, ColorTier};
-use tg_render::glyph::{compact_glyph, most_advanced_stage, prompt_emoji_glyph, stage_glyph};
+use tg_render::glyph::{
+    compact_glyph, most_advanced_stage, prompt_emoji_glyph, stage_from_glyph, stage_glyph,
+};
 use tg_render::sprites::{
     SpriteBank, EMBEDDED_ASCII_SPRITES, EMBEDDED_UNICODE_SPRITES, SPRITE_ART_HEIGHT,
     SPRITE_ART_WIDTH,
@@ -303,4 +305,36 @@ fn color_tier_detection_honours_no_color_flag_env_and_terminal_capabilities() {
         detect_color_tier(ColorPreference::Auto, &env_dumb),
         ColorTier::NoColor
     );
+}
+
+#[test]
+fn stage_from_glyph_inverts_every_unicode_and_ascii_stage_glyph_and_rejects_emoji() {
+    let stages = [
+        None,
+        Some(Stage::Seed),
+        Some(Stage::Sprout),
+        Some(Stage::Young),
+        Some(Stage::Mature),
+        Some(Stage::Blooming),
+    ];
+
+    for set in [SpriteSet::Unicode, SpriteSet::Ascii] {
+        for stage in stages {
+            let glyph = stage_glyph(stage, set);
+            assert_eq!(
+                stage_from_glyph(glyph),
+                Some(stage),
+                "stage_from_glyph must invert {glyph:?} ({set:?}, {stage:?})"
+            );
+        }
+    }
+
+    // Emoji and unrecognized strings are not canonical 1-cell stage glyphs.
+    for non_glyph in ["", "🌸", "🌱", "🪴", "✿", "??"] {
+        assert_eq!(
+            stage_from_glyph(non_glyph),
+            None,
+            "expected None for non-canonical glyph {non_glyph:?}"
+        );
+    }
 }

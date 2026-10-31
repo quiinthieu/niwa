@@ -55,12 +55,53 @@ pub enum PromptStyle {
 }
 
 impl PromptStyle {
+    pub const ALL: [Self; 3] = [Self::Glyph, Self::Emoji, Self::None];
+
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Glyph => "glyph",
             Self::Emoji => "emoji",
             Self::None => "none",
+        }
+    }
+}
+
+impl fmt::Display for PromptStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Error returned when parsing a [`PromptStyle`] (`glyph`, `emoji`, or `none`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParsePromptStyleError(pub String);
+
+impl fmt::Display for ParsePromptStyleError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "invalid prompt style '{}' (expected 'glyph', 'emoji', or 'none')",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ParsePromptStyleError {}
+
+impl FromStr for PromptStyle {
+    type Err = ParsePromptStyleError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let trimmed = s.trim();
+        if trimmed.eq_ignore_ascii_case("glyph") {
+            Ok(Self::Glyph)
+        } else if trimmed.eq_ignore_ascii_case("emoji") {
+            Ok(Self::Emoji)
+        } else if trimmed.eq_ignore_ascii_case("none") {
+            Ok(Self::None)
+        } else {
+            Err(ParsePromptStyleError(trimmed.to_string()))
         }
     }
 }
@@ -459,18 +500,8 @@ impl AppConfig {
                 self.git.author_email = parse_author_email(key, value)?;
             }
             "prompt.style" => {
-                self.prompt.style = match value {
-                    "glyph" => PromptStyle::Glyph,
-                    "emoji" => PromptStyle::Emoji,
-                    "none" => PromptStyle::None,
-                    _ => {
-                        return Err(invalid_val(
-                            key,
-                            value,
-                            "expected 'glyph', 'emoji', or 'none'",
-                        ));
-                    }
-                };
+                self.prompt.style = PromptStyle::from_str(value)
+                    .map_err(|_| invalid_val(key, value, "expected 'glyph', 'emoji', or 'none'"))?;
             }
             "menubar.show_title" => {
                 self.menubar.show_title = parse_bool(key, value)?;

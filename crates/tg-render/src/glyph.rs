@@ -33,6 +33,21 @@ pub const fn stage_glyph(stage: Option<Stage>, set: SpriteSet) -> &'static str {
     }
 }
 
+/// Inverts [`stage_glyph`] back to `Some(Option<Stage>)` for all 12 canonical Unicode and ASCII
+/// stage glyphs, returning `None` for non-canonical strings (such as emoji or custom test strings).
+#[must_use]
+pub fn stage_from_glyph(glyph: &str) -> Option<Option<Stage>> {
+    match glyph {
+        "◌" | "_" => Some(None),
+        "·" | "." => Some(Some(Stage::Seed)),
+        "╷" | "," => Some(Some(Stage::Sprout)),
+        "┼" | "+" => Some(Some(Stage::Young)),
+        "◎" | "o" => Some(Some(Stage::Mature)),
+        "◈" | "*" => Some(Some(Stage::Blooming)),
+        _ => None,
+    }
+}
+
 /// Computes the 1-cell compact glyph representing the most advanced plant in `garden`.
 #[must_use]
 pub fn compact_glyph(garden: &Garden, set: SpriteSet) -> &'static str {

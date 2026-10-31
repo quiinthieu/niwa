@@ -1,0 +1,15 @@
+---
+source: crates/tg-store/tests/snapshot_schema.rs
+expression: raw_dormant
+---
+{
+  "schema_version": 1,
+  "glyph": "◎",
+  "summary": "2/8 planted · 0 blooming · resting",
+  "season": "winter",
+  "compact_frame": "Niwa · Winter · 2/8 planted · resting\n  1. ◎ Pine (Mature · resting)\n  2. ╷ Clover (Sprout · resting)",
+  "updated_at": 1766000120,
+  "dormant": true,
+  "planted_count": 2,
+  "blooming_count": 0
+}
