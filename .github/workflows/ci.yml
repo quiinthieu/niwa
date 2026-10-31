@@ -76,6 +76,11 @@ jobs:
       - name: Run tg-core purity lint
         run: ./scripts/lint-core-purity.sh
 
+      - name: Run PLAN.md §7 performance benchmark check
+        env:
+          NIWA_MACOS_BENCH_IDLE_SECS: "3.0"
+        run: ./scripts/bench.sh
+
       - name: Build and test macOS menu bar app
         if: runner.os == 'macOS'
         run: |

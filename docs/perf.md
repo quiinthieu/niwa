@@ -6,17 +6,20 @@ This document records **actual measured numbers** against the `PLAN.md` §7 powe
 
 ## Summary Against `PLAN.md` §7 Targets
 
-| Target (`PLAN.md` §7) | Budget | Measured Value (`--release`) | Status | Task |
+Every target below is continuously benchmarked in `--release` (`-O` for Swift) by [`./scripts/bench.sh`](../scripts/bench.sh) against the stored baseline in [`tests/fixtures/perf-baseline.json`](../tests/fixtures/perf-baseline.json).
+
+| Target (`PLAN.md` §7) | Budget | Stored Baseline (`--release` / `-O`, `2026-10-31`) | Status | Task |
 |---|---|---|---|---|
-| `niwa _ingest` subprocess latency (`signals.shell` enabled, `O_APPEND` 1 JSONL line) | p95 `< 10 ms` | **p50 `2.643 ms` · p95 `4.079 ms` · p99 `4.754 ms`** (`n = 200`, min `1.787 ms`, max `5.907 ms`) | Pass | T12 |
-| `niwa _ingest` subprocess latency (`signals.shell` disabled, opt-out no-op) | p95 `< 10 ms` | **p50 `2.613 ms` · p95 `4.726 ms` · p99 `6.242 ms`** (`n = 200`, min `1.711 ms`, max `6.892 ms`) | Pass | T12 |
-| `niwa prompt` subprocess latency (fresh `snapshot.json`, default `glyph`) | p95 `< 15 ms` | **p50 `3.299 ms` · p95 `9.208 ms` · p99 `16.599 ms`** (`n = 200`, min `1.885 ms`, max `24.452 ms`) | Pass | T13 |
-| `niwa prompt --style emoji` subprocess latency (fresh `snapshot.json`) | p95 `< 15 ms` | **p50 `2.880 ms` · p95 `4.550 ms` · p99 `5.720 ms`** (`n = 200`, min `1.882 ms`, max `7.200 ms`) | Pass | T13 |
-| `niwa prompt --style none` subprocess latency (opt-out zero-output fast path) | p95 `< 15 ms` | **p50 `2.389 ms` · p95 `4.071 ms` · p99 `4.594 ms`** (`n = 200`, min `1.605 ms`, max `5.179 ms`) | Pass | T13 |
-| 30-day offline `catch_up` (`43,200` ticks) | `< 200 ms` (`--release`) | Verified `< 200 ms` by `crates/tg-core/tests/catch_up.rs` (`thirty_day_catch_up_meets_budget`); CI baseline recorded in T16 | Automated test | T06 / T16 |
-| Daemon wake cadence | 1 coalesced wake / `60 s`; `0` wakes when no signal is enabled | Verified by `crates/niwa/tests/daemon_flow.rs` (`daemon_exits_immediately_with_zero_wakes_when_no_signal_is_enabled`) | Automated test | T10 |
-| TUI frame rate | `<= 4 fps` focused, `0 fps` idle after `30 s` | Verified by `crates/niwa/tests/cli_and_tui.rs` | Automated test | T08 |
-| macOS `MenuBarExtra` idle CPU, wakes & Energy Log check | Idle except for `60 s` coalesced timer (`tolerance = 6.0 s`) + `DispatchSource` watch on `snapshot.json` | **`0.0196%` CPU** (`1.957 ms` total CPU over `10.009 s` steady-state idle, `0` subprocess spawns between `60 s` ticks, `14.78 MiB` `phys_footprint`; `snapshot.json` reload **p50 `47.8 µs` · p95 `72.3 µs`**); Instruments `xctrace` note below | Pass (local `getrusage` + design audit; `xctrace` noted) | T14 |
+| `niwa _ingest` subprocess latency (`signals.shell` enabled, `O_APPEND` 1 JSONL line) | p95 `< 10 ms` | **p50 `2.274 ms` · p95 `3.535 ms` · p99 `5.201 ms`** (`n = 200`, min `1.859 ms`, max `6.420 ms`) | Pass | T12 / T16 |
+| `niwa _ingest` subprocess latency (`signals.shell` disabled, opt-out no-op) | p95 `< 10 ms` | **p50 `2.338 ms` · p95 `4.627 ms` · p99 `10.530 ms`** (`n = 200`, min `1.789 ms`, max `11.984 ms`) | Pass | T12 / T16 |
+| `niwa prompt` subprocess latency (fresh `snapshot.json`, default `glyph`) | p95 `< 15 ms`; `0` sim writes | **p50 `2.474 ms` · p95 `4.282 ms` · p99 `6.682 ms`** (`n = 200`, min `1.849 ms`, max `6.708 ms`; `snapshot_untouched = true`) | Pass | T13 / T16 |
+| `niwa prompt --style emoji` subprocess latency (fresh `snapshot.json`) | p95 `< 15 ms` | **p50 `2.047 ms` · p95 `3.832 ms` · p99 `4.907 ms`** (`n = 200`, min `1.797 ms`, max `5.898 ms`) | Pass | T13 / T16 |
+| `niwa prompt --style none` subprocess latency (opt-out zero-output fast path) | p95 `< 15 ms` | **p50 `2.120 ms` · p95 `4.267 ms` · p99 `6.000 ms`** (`n = 200`, min `1.689 ms`, max `8.411 ms`) | Pass | T13 / T16 |
+| 30-day offline `catch_up` (`43,200` ticks, time-only) | `< 200 ms` (`--release`) | **p50 `0.670 ms` · p95 `0.941 ms` · max `0.990 ms`** (`n = 50`, min `0.567 ms`, mean `0.726 ms`) | Pass | T06 / T16 |
+| 30-day offline `catch_up_with_events` (`43,200` ticks + `2,400` work events) | `< 200 ms` (`--release`) | **p50 `3.309 ms` · p95 `4.137 ms` · max `4.544 ms`** (`n = 50`, min `2.995 ms`, mean `3.439 ms`) | Pass | T06 / T16 |
+| Daemon wake cadence & opt-out zero-wake check | `1` coalesced wake / `60 s`, no FS polling; `0` wakes when no signal enabled | **`60 s` wake interval**, **`0` wakes / `0` sleeps / `0` idle polls** when no signal enabled; single-wake full cycle **p50 `25.208 ms` · p95 `29.686 ms` · max `30.954 ms`** (`n = 50`) | Pass | T10 / T16 |
+| TUI frame rate & frame render latency | `<= 4 fps` focused, `0 fps` idle (`30 s`) or unfocused | **`4.000 fps` focused** (`50 ms` input spam), **`0.000 fps` idle** (`60 s` poll sleep), **`0.000 fps` unfocused** (`FocusLost`); `TuiApp::render` `80×24` **p50 `0.180 ms` · p95 `0.295 ms`**, `120×40` **p50 `0.306 ms` · p95 `0.425 ms`** (`n = 200`) | Pass | T08 / T16 |
+| macOS `MenuBarExtra` idle CPU, wakes & Energy Log check | Idle except for `60 s` coalesced timer (`tolerance = 6.0 s`) + `DispatchSource` watch on `snapshot.json` | **`0.0179%` CPU** (`0.896 ms` total CPU over `5.005 s` steady-state idle, `0` subprocess spawns between `60 s` ticks, `15.063 MiB` `phys_footprint`; `snapshot.json` reload **p50 `25.166 µs` · p95 `30.917 µs`**); Instruments `xctrace` note below | Pass | T14 / T16 |
 
 ---
 
@@ -98,3 +101,51 @@ This document records **actual measured numbers** against the `PLAN.md` §7 powe
    xcrun xctrace record --template 'Energy Log' --time-limit 3m --output /tmp/niwa-energy.trace --launch -- /path/to/Niwa.app
    ```
    and confirm **Energy Impact** remains **Low** (`0` overhead wakes between the 60 s coalesced timer ticks).
+
+---
+
+## T16: Stored Baseline & Full `PLAN.md` §7 Suite (`scripts/bench.sh`, `2026-10-31`)
+
+### Harness & Stored Baseline
+- **Runner:** [`./scripts/bench.sh`](../scripts/bench.sh) runs the `--release` Rust benchmark driver ([`crates/niwa/tests/perf_bench.rs`](../crates/niwa/tests/perf_bench.rs), `run_release_perf_benchmarks_and_emit_json`) and, on macOS, compiles and runs the `-O` Swift 6 menu bar driver ([`macos/Bench/MenuBarBench.swift`](../macos/Bench/MenuBarBench.swift)), then compares every metric against [`tests/fixtures/perf-baseline.json`](../tests/fixtures/perf-baseline.json).
+- **Schema & budget invariant test:** `stored_perf_baseline_json_exists_and_covers_every_section_7_target` in [`crates/niwa/tests/perf_bench.rs`](../crates/niwa/tests/perf_bench.rs) runs as part of `cargo test --workspace` on every OS, verifying that `tests/fixtures/perf-baseline.json` parses cleanly and that every stored baseline figure satisfies its `PLAN.md` §7 budget.
+- **Commands:**
+  ```sh
+  ./scripts/bench.sh                     # Run --release / -O suite and check against tests/fixtures/perf-baseline.json
+  ./scripts/bench.sh --json /tmp/out.json # Emit raw measured JSON for the current run
+  ./scripts/bench.sh --update-baseline   # Re-record tests/fixtures/perf-baseline.json on macOS
+  ```
+
+### 1. 30-Day Offline `catch_up` (`43,200` ticks, all plots planted, `--release`)
+
+| Scenario | `n` | `min` | `p50` | `mean` | `p95` | `p99` | `max` | §7 Budget |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Time-only (`Garden::catch_up`, `43,200` ticks across 30 days) | 50 | `0.567 ms` | `0.670 ms` | `0.726 ms` | **`0.941 ms`** | `0.990 ms` | `0.990 ms` | `< 200 ms` |
+| Event-carrying (`Garden::catch_up_with_events`, `43,200` ticks + `2,400` work events) | 50 | `2.995 ms` | `3.309 ms` | `3.439 ms` | **`4.137 ms`** | `4.544 ms` | `4.544 ms` | `< 200 ms` |
+
+### 2. `niwa daemon` Wake Cadence, Opt-Out Zero-Wake & Single-Wake Cost (`--release`)
+
+| Metric | Measured Value | §7 Target |
+|---|---:|---|
+| Periodic wake interval (`DAEMON_TICK_INTERVAL`) | **`60 s`** | `1` coalesced wake per `60 s`, no filesystem polling |
+| Wakes / sleeps / idle polls when no signal is enabled | **`0` wakes · `0` sleeps · `0` idle polls** | `0` daemon wakes when no signal is enabled (`DaemonStopReason::SkippedNoSignals`) |
+| Single-wake full cycle (`lock → load → sample → catch_up → save → snapshot`, `n = 50`) | **min `14.079 ms` · p50 `25.208 ms` · mean `25.338 ms` · p95 `29.686 ms` · max `30.954 ms`** | Completes in `< 0.05%` of each `60 s` interval |
+
+### 3. `niwa` TUI Frame-Rate Caps & Frame Render Latency (`--release`)
+
+Verified both by [`crates/niwa/tests/tui_flow.rs`](../crates/niwa/tests/tui_flow.rs) and [`crates/niwa/tests/perf_bench.rs`](../crates/niwa/tests/perf_bench.rs):
+
+| Metric | Measured Value | §7 Target |
+|---|---:|---|
+| Focused active frame rate (`200` key events at `50 ms` intervals over `10.0 s`) | **`4.000 fps`** (`40` draws / `10.0 s`) | `<= 4 fps` while focused |
+| Idle frame rate after `30 s` without input (`300 s` window) | **`0.000 fps`** (`0` draws) | `0 fps` when idle |
+| Idle event-loop poll timeout (`FrameScheduler::next_poll_timeout`) | **`60 s`** (`SIM_TICK_INTERVAL`) | Sleeps until next `60 s` simulation tick |
+| Unfocused frame rate after `Event::FocusLost` (`60 s` window) | **`0.000 fps`** (`0` draws) | `0 fps` when unfocused |
+| `TuiApp::render` frame cost at `80×24` (`n = 200`, `Truecolor`, seasonal ambience active) | **min `0.163 ms` · p50 `0.180 ms` · mean `0.197 ms` · p95 `0.295 ms` · max `0.598 ms`** | `< 0.2%` of the `250 ms` `4 fps` frame interval |
+| `TuiApp::render` frame cost at `120×40` (`n = 200`, `Truecolor`, seasonal ambience active) | **min `0.284 ms` · p50 `0.306 ms` · mean `0.325 ms` · p95 `0.425 ms` · max `0.778 ms`** | `< 0.2%` of the `250 ms` `4 fps` frame interval |
+
+### 4. Stored Baseline Summary (`tests/fixtures/perf-baseline.json`, `Darwin 27.2.0 arm64`)
+
+- **`niwa _ingest` (`n = 200`):** `signals.shell = enabled` **p50 `2.274 ms` · p95 `3.535 ms` · p99 `5.201 ms` · max `6.420 ms`**; `signals.shell = disabled` **p50 `2.338 ms` · p95 `4.627 ms` · p99 `10.530 ms` · max `11.984 ms`** (target: p95 `< 10 ms`).
+- **`niwa prompt` (`n = 200`, `snapshot_untouched = true`):** `glyph` **p50 `2.474 ms` · p95 `4.282 ms` · p99 `6.682 ms` · max `6.708 ms`**; `--style emoji` **p50 `2.047 ms` · p95 `3.832 ms` · p99 `4.907 ms` · max `5.898 ms`**; `--style none` **p50 `2.120 ms` · p95 `4.267 ms` · p99 `6.000 ms` · max `8.411 ms`** (target: p95 `< 15 ms`).
+- **macOS `MenuBarExtra` (`swiftc -O`, `5,005.066 ms` steady-state window):** **`0.0179%` CPU** (`0.502 ms` user + `0.394 ms` sys = `0.896 ms` total CPU), **`0` spawns** between `60.0 s` (`tolerance = 6.0 s`) ticks, **`15.063 MiB`** `phys_footprint`, `snapshot.json` reload (`n = 200`) **p50 `25.166 µs` · p95 `30.917 µs` · max `102.541 µs`**.

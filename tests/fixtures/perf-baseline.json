@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "recorded_on": "2026-10-31",
+  "host_platform": "Darwin 27.2.0 arm64",
+  "budgets": {
+    "ingest_p95_budget_ms": 10.0,
+    "prompt_p95_budget_ms": 15.0,
+    "catch_up_30d_budget_ms": 200.0,
+    "daemon_wake_interval_secs": 60,
+    "daemon_wakes_when_no_signals": 0,
+    "tui_max_focused_fps": 4.0,
+    "tui_idle_fps": 0.0,
+    "tui_unfocused_fps": 0.0,
+    "tui_idle_poll_timeout_secs": 60,
+    "menubar_timer_interval_secs": 60.0,
+    "menubar_timer_tolerance_secs": 6.0,
+    "menubar_idle_spawns_between_ticks": 0,
+    "menubar_max_idle_cpu_pct": 1.0
+  },
+  "baseline": {
+    "rust": {
+      "ingest": {
+        "shell_enabled": {
+          "samples": 200,
+          "min_ms": 1.859,
+          "p50_ms": 2.274,
+          "mean_ms": 2.475,
+          "p95_ms": 3.535,
+          "p99_ms": 5.201,
+          "max_ms": 6.42
+        },
+        "shell_disabled": {
+          "samples": 200,
+          "min_ms": 1.789,
+          "p50_ms": 2.338,
+          "mean_ms": 2.758,
+          "p95_ms": 4.627,
+          "p99_ms": 10.53,
+          "max_ms": 11.984
+        }
+      },
+      "prompt": {
+        "glyph": {
+          "samples": 200,
+          "min_ms": 1.849,
+          "p50_ms": 2.474,
+          "mean_ms": 2.754,
+          "p95_ms": 4.282,
+          "p99_ms": 6.682,
+          "max_ms": 6.708
+        },
+        "emoji": {
+          "samples": 200,
+          "min_ms": 1.797,
+          "p50_ms": 2.047,
+          "mean_ms": 2.35,
+          "p95_ms": 3.832,
+          "p99_ms": 4.907,
+          "max_ms": 5.898
+        },
+        "none": {
+          "samples": 200,
+          "min_ms": 1.689,
+          "p50_ms": 2.12,
+          "mean_ms": 2.485,
+          "p95_ms": 4.267,
+          "p99_ms": 6.0,
+          "max_ms": 8.411
+        },
+        "snapshot_untouched": true
+      },
+      "catch_up": {
+        "ticks_simulated": 43200,
+        "thirty_day_time_only": {
+          "samples": 50,
+          "min_ms": 0.567,
+          "p50_ms": 0.67,
+          "mean_ms": 0.726,
+          "p95_ms": 0.941,
+          "p99_ms": 0.99,
+          "max_ms": 0.99
+        },
+        "thirty_day_with_events": {
+          "samples": 50,
+          "min_ms": 2.995,
+          "p50_ms": 3.309,
+          "mean_ms": 3.439,
+          "p95_ms": 4.137,
+          "p99_ms": 4.544,
+          "max_ms": 4.544
+        }
+      },
+      "daemon": {
+        "wake_interval_secs": 60,
+        "no_signals_wakes": 0,
+        "no_signals_sleeps": 0,
+        "no_signals_idle_polls": 0,
+        "single_wake_latency": {
+          "samples": 50,
+          "min_ms": 14.079,
+          "p50_ms": 25.208,
+          "mean_ms": 25.338,
+          "p95_ms": 29.686,
+          "p99_ms": 30.954,
+          "max_ms": 30.954
+        }
+      },
+      "tui": {
+        "max_focused_fps": 4.0,
+        "idle_fps": 0.0,
+        "unfocused_fps": 0.0,
+        "idle_poll_timeout_secs": 60,
+        "render_80x24": {
+          "samples": 200,
+          "min_ms": 0.163,
+          "p50_ms": 0.18,
+          "mean_ms": 0.197,
+          "p95_ms": 0.295,
+          "p99_ms": 0.442,
+          "max_ms": 0.598
+        },
+        "render_120x40": {
+          "samples": 200,
+          "min_ms": 0.284,
+          "p50_ms": 0.306,
+          "mean_ms": 0.325,
+          "p95_ms": 0.425,
+          "p99_ms": 0.633,
+          "max_ms": 0.778
+        }
+      }
+    },
+    "macos_menubar": {
+      "idle_cpu_pct": 0.0179,
+      "idle_spawns_between_ticks": 0,
+      "observation_window_ms": 5005.066,
+      "phys_footprint_mib": 15.063,
+      "snapshot_reload_max_us": 102.541,
+      "snapshot_reload_p50_us": 25.166,
+      "snapshot_reload_p95_us": 30.917,
+      "sys_cpu_ms": 0.394,
+      "timer_interval_secs": 60.0,
+      "timer_tolerance_secs": 6.0,
+      "total_cpu_ms": 0.896,
+      "user_cpu_ms": 0.502
+    }
+  }
+}
