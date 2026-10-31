@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Summer / Uncommon.
+id = "lavender"
+display_name = "English Lavender"
+rarity = "uncommon"
+gp_per_stage = [48_000, 140_000, 260_000, 400_000]
+growth_multiplier = 1.0
+preferred_seasons = ["summer"]
+seasonal_sprout_only = false
+color_hint = "violet"
+almanac_flavour = "Slender silver-green spires carrying a calm scent through long summer coding sessions."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╵ "
+young = " │ "
+mature = "║│║"
+blooming = "▒║▒"
+
+[sprites.ascii]
+seed = " . "
+sprout = " i "
+young = " | "
+mature = "|||"
+blooming = ":|:"

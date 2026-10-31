@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Winter / Common.
+id = "moss"
+display_name = "Cushion Moss"
+rarity = "common"
+gp_per_stage = [35_000, 105_000, 200_000, 310_000]
+growth_multiplier = 1.05
+preferred_seasons = ["winter", "autumn"]
+seasonal_sprout_only = false
+color_hint = "green"
+almanac_flavour = "Velvet emerald domes that stay quietly green through frost and rain alike."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ▄ "
+young = "▄▄▄"
+mature = "▄█▄"
+blooming = "░█░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " _ "
+young = "___"
+mature = "_m_"
+blooming = ".M."

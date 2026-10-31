@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Autumn / Mythic.
+id = "moonflower"
+display_name = "Midnight Moonflower"
+rarity = "mythic"
+gp_per_stage = [82_000, 225_000, 430_000, 650_000]
+growth_multiplier = 0.9
+preferred_seasons = ["autumn"]
+seasonal_sprout_only = true
+color_hint = "violet"
+almanac_flavour = "Luminous twilight trumpets that spiral open only when crisp autumn nights return."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = "╭│ "
+mature = "╭┼╮"
+blooming = "░▓░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ' "
+young = "(| "
+mature = "(+)"
+blooming = "(@)"

@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Autumn / Common.
+id = "chamomile"
+display_name = "Wild Chamomile"
+rarity = "common"
+gp_per_stage = [38_000, 115_000, 215_000, 330_000]
+growth_multiplier = 1.0
+preferred_seasons = ["autumn", "summer"]
+seasonal_sprout_only = false
+color_hint = "gold"
+almanac_flavour = "Feathery apple-scented stems ready for a warm mug beside the keyboard."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = " ┼ "
+mature = "╭┼╮"
+blooming = "░┴░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " , "
+young = " + "
+mature = "(+)"
+blooming = "o^o"

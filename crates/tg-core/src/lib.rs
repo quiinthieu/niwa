@@ -3,7 +3,10 @@
 
 pub mod balance;
 pub mod clock;
+pub mod drops;
 pub mod model;
 pub mod product;
 pub mod rng;
+pub mod season;
 pub mod sim;
+pub mod species;

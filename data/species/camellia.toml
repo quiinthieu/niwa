@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Winter / Rare.
+id = "camellia"
+display_name = "Snow Camellia"
+rarity = "rare"
+gp_per_stage = [64_000, 178_000, 335_000, 495_000]
+growth_multiplier = 0.95
+preferred_seasons = ["winter"]
+seasonal_sprout_only = false
+color_hint = "crimson"
+almanac_flavour = "Glossy evergreen leaves framing deep rose rosettes against midwinter snow."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╵ "
+young = "├│┤"
+mature = "╭┴╮"
+blooming = "▒▓▒"
+
+[sprites.ascii]
+seed = " . "
+sprout = " i "
+young = "-|-"
+mature = "(|)"
+blooming = "{@}"

@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Summer / Mythic.
+id = "sunburst_orchid"
+display_name = "Sunburst Orchid"
+rarity = "mythic"
+gp_per_stage = [85_000, 230_000, 440_000, 660_000]
+growth_multiplier = 0.9
+preferred_seasons = ["summer"]
+seasonal_sprout_only = true
+color_hint = "amber"
+almanac_flavour = "Radiant saffron petals perched on aerial roots, waking only in high summer warmth."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = "╭│╮"
+mature = "├┼┤"
+blooming = "▓█▓"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ' "
+young = "(|)"
+mature = "{+}"
+blooming = "*@*"

@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Winter / Mythic.
+id = "frostbell"
+display_name = "Starlight Frostbell"
+rarity = "mythic"
+gp_per_stage = [84_000, 228_000, 435_000, 655_000]
+growth_multiplier = 0.9
+preferred_seasons = ["winter"]
+seasonal_sprout_only = true
+color_hint = "blue"
+almanac_flavour = "Crystalline chime-blossoms that sprout only when winter hush settles over the garden."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = " │ "
+mature = "╭┬╮"
+blooming = "░█░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ' "
+young = " | "
+mature = "/T\\"
+blooming = "*^*"

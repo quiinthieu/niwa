@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Spring / Rare.
+id = "lily_of_the_valley"
+display_name = "Lily of the Valley"
+rarity = "rare"
+gp_per_stage = [60_000, 170_000, 320_000, 480_000]
+growth_multiplier = 0.95
+preferred_seasons = ["spring"]
+seasonal_sprout_only = false
+color_hint = "frost"
+almanac_flavour = "Tiny porcelain bells nodding along a single arching stem in cool spring shade."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = "╭│ "
+mature = "╭┤ "
+blooming = "╭┬░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ' "
+young = "/| "
+mature = "/|- "
+blooming = "/^o"
