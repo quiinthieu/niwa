@@ -1,0 +1,23 @@
+# Tunable v1 balance parameters (PLAN §4).
+# Every number in this file is a gameplay tunable, never a measured performance claim.
+
+[garden]
+# Initial plot capacity of a newly created garden (tunable; 3x3 starter grid).
+default_plots = 9
+
+[growth]
+# Always-on wall-time trickle per 60s tick (tunable; tuned so a common plant blooms in ~1 work week).
+base_gp_per_tick = 100
+# Bonus GP per 60s tick when the tick is active (tunable).
+sun_gp_per_tick = 150
+# Default per-stage GP thresholds [Seed->Sprout, Sprout->Young, Young->Mature, Mature->Blooming] (tunable).
+# Total = 720_000 GP = 7_200 base ticks = 5.0 days (120 hours) from wall-time trickle alone.
+default_stage_thresholds = [40_000, 120_000, 220_000, 340_000]
+# Default species growth multiplier (1.0 = neutral, tunable).
+default_species_multiplier = 1.0
+# Default season growth multiplier (1.0 = neutral, tunable).
+default_season_multiplier = 1.0
+
+[dormancy]
+# Days without any active tick before plants pause in dormancy (tunable; PLAN §4.1 default = 7).
+dormant_after_days = 7

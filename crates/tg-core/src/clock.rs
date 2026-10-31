@@ -4,12 +4,19 @@
 //! (`SystemClock` from `tg-store` in production, `FakeClock` in tests).
 
 use core::sync::atomic::{AtomicI64, Ordering};
+use serde::{Deserialize, Serialize};
 
 /// Duration of one garden simulation tick in seconds (PLAN §2).
 pub const TICK_SECS: i64 = 60;
 
+/// Number of 60-second simulation ticks in one 24-hour day.
+pub const TICKS_PER_DAY: u64 = 24 * 60;
+
 /// Unix timestamp in whole seconds since `1970-01-01T00:00:00Z`.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(transparent)]
 pub struct Timestamp(pub i64);
 
 impl Timestamp {

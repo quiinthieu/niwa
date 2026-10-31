@@ -17,3 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Portable seeded PCG64 PRNG factory (`rng_from_seed`, `rng_for_tick`, `rng_for_stream`) in `crates/tg-core/src/rng.rs` and `insta` golden snapshot testing setup.
 - `TestEnv` harness (isolated temporary `NIWA_HOME`, `HOME`, and XDG directories), `NiwaPaths` (`crates/tg-store/src/paths.rs`), and save/spool fixture loaders (`crates/tg-store/src/fixtures.rs`, `tests/fixtures/`).
 - `tg-core` purity lint (`scripts/lint-core-purity.sh`) enforced in CI with planted-violation tests (`crates/niwa/tests/core_purity_lint.rs`).
+- **T03 Core simulation:** Tunable gameplay balance parameters in `data/balance.toml` validated by `Balance` and `GrowthProfile` in `crates/tg-core/src/balance.rs`.
+- Pure domain model (`Stage`, `Plant`, `Plot`, `SimError` in `crates/tg-core/src/model.rs`) and deterministic `Garden` simulation (`tick()`, `tick_n()`, `simulate_ticks()`, dormancy, and `(garden_seed, tick_index)` per-tick/per-plot seeding in `crates/tg-core/src/sim.rs`).
+- Unit tests for every stage transition and dormancy cycle (`crates/tg-core/tests/sim_stages_and_dormancy.rs`) plus `proptest` suites for batching invariance, monotonicity, and non-loss (`crates/tg-core/tests/sim_properties.rs`).

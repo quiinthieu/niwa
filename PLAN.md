@@ -166,7 +166,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* a lint shows `tg-core` has no `std::fs`, `SystemTime::now` or `std::env`. The sample tests pass 100× in a loop.
 
 ### M1 MVP: time-only garden in the terminal
-- [ ] **T03 Core simulation.** `Garden`, `Plot`, `Plant`, `Stage`, GP, `tick()`, dormancy, per-tick seeding.
+- [x] **T03 Core simulation.** `Garden`, `Plot`, `Plant`, `Stage`, GP, `tick()`, dormancy, per-tick seeding.
   *AC:* unit tests for every stage transition and for dormancy. The batching-invariance and monotonicity properties pass.
 - [ ] **T04 Species, rarity, seasons.** `data/species` loader with validation, an initial set of species across the four rarities (counts tunable; at least one per tier per season), drop table, calendar and garden season modes, hemisphere.
   *AC:* a bad species file gives a clear error with file and line. The season boundary tests pass for both hemispheres. Drop-table sampling over a fixed seed is golden.
