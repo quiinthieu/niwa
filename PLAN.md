@@ -186,7 +186,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* with the fake idle source, active ticks get the sun bonus. Install/uninstall round-trips in a temp home. The daemon skips its wake when no signal is enabled.
 - [x] **T11 Git signal.** `git.repos` and `git.author_email` config. Read-only `git log` polling stores timestamps only and dedupes across repos and re-polls.
   *AC:* temp-repo tests count only the configured author's new commits. Rewritten history doesn't double count. No repo path or message shows up in the save or spool (privacy test).
-- [ ] **T12 Shell hook.** `niwa hook zsh|bash|fish` prints a snippet that backgrounds `niwa _ingest`. `hook install --write-rc` adds a marked block with a backup, and `hook uninstall` removes it. `_ingest` fast path.
+- [x] **T12 Shell hook.** `niwa hook zsh|bash|fish` prints a snippet that backgrounds `niwa _ingest`. `hook install --write-rc` adds a marked block with a backup, and `hook uninstall` removes it. `_ingest` fast path.
   *AC:* real shells in CI produce spool lines with timestamp, exit class and duration bucket only. Install → uninstall restores the rc file byte for byte. The `_ingest` latency is measured and recorded.
 
 ### M3 Ambient surfaces & macOS menu bar
