@@ -184,6 +184,65 @@ pub fn resolve_color_tier(config: &AppConfig, no_color_flag: bool) -> ColorTier 
     detect_color_tier(preference, &env)
 }
 
+/// Shared `niwa config set` pipeline used by the CLI, the TUI Settings screen, and (via CLI
+/// invocation) the macOS menu bar Settings window (`PLAN.md` §6 & §10 T15).
+///
+/// Atomically updates `config.toml` through `tg-store` and, when an existing `garden.json` is
+/// present and unlocked, refreshes `snapshot.json` so prompt and menu bar consumers immediately
+/// reflect visual settings (`sprites`, `season_mode`, `hemisphere`).
+pub fn apply_config_set(
+    paths: &NiwaPaths,
+    clock: &dyn Clock,
+    key: &str,
+    value: &str,
+) -> Result<(AppConfig, String), StoreError> {
+    let store = ConfigStore::new(paths.clone());
+    let mut config = store.load()?;
+    let now = clock.now();
+    config.set_key_with_timestamp(key, value, Some(now))?;
+    store.save(&config)?;
+    let normalized = config.get_key(key)?;
+    let _ = try_refresh_existing_garden_snapshot(paths, &config, now);
+    Ok((config, normalized))
+}
+
+fn try_refresh_existing_garden_snapshot(
+    paths: &NiwaPaths,
+    config: &AppConfig,
+    now: Timestamp,
+) -> Result<(), StoreError> {
+    if !paths.garden_file().is_file() {
+        return Ok(());
+    }
+    let Some(_lock) = GardenLock::try_acquire(paths)? else {
+        return Ok(());
+    };
+    let Some(outcome) = GardenStore::new(paths.clone()).load()? else {
+        return Ok(());
+    };
+    let garden = outcome.save.to_garden();
+    let balance = Balance::load_default();
+    let catalog = SpeciesCatalog::load_default();
+    let sprites = SpriteBank::load_default();
+    let season = resolve_season(
+        config.season_mode,
+        config.hemisphere,
+        garden.last_tick_at(),
+        garden.created_at(),
+        balance.seasons.season_length_days,
+    );
+    let snap = build_snapshot(
+        &garden,
+        config,
+        &catalog,
+        &sprites,
+        season,
+        now.max(garden.last_tick_at()),
+    );
+    write_snapshot(paths, &snap)?;
+    Ok(())
+}
+
 /// Live garden session coordinating `tg-core`, `tg-store`, and `tg-render`.
 #[derive(Clone, Debug)]
 pub struct GardenSession {
@@ -439,6 +498,19 @@ impl GardenSession {
     #[must_use]
     pub const fn config(&self) -> &AppConfig {
         &self.config
+    }
+
+    /// Updates a `config.toml` key through the shared `niwa config set` pipeline and refreshes
+    /// the in-memory `AppConfig` (`PLAN.md` §6 & §10 T15).
+    pub fn set_config_key(
+        &mut self,
+        key: &str,
+        value: &str,
+        clock: &dyn Clock,
+    ) -> Result<String, StoreError> {
+        let (updated, normalized) = apply_config_set(&self.paths, clock, key, value)?;
+        self.config = updated;
+        Ok(normalized)
     }
 
     #[must_use]

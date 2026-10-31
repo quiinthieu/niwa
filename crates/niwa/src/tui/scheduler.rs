@@ -45,6 +45,14 @@ impl FrameScheduler {
         self.fps
     }
 
+    /// Updates the configured active frame-rate cap (`1..=4` fps) in place when `fps` is changed
+    /// in the TUI Settings screen (`PLAN.md` §6, §7 & §10 T15).
+    pub fn set_fps(&mut self, configured_fps: u8) {
+        let fps = configured_fps.clamp(MIN_FPS, MAX_FPS);
+        self.fps = fps;
+        self.frame_interval = Duration::from_millis(1_000 / u64::from(fps));
+    }
+
     #[must_use]
     pub const fn frame_interval(&self) -> Duration {
         self.frame_interval

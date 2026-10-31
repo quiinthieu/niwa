@@ -46,9 +46,12 @@ pub struct SignalDisclosure {
 }
 
 impl SignalDisclosure {
-    /// Renders the multi-line consent disclosure shown by `niwa signals enable <name>` (PLAN §5).
+    /// Renders the shared multi-line consent disclosure body (summary, source, what is stored,
+    /// what is never stored, and the confirmation question) without a trailing stdin `[y/N]: `
+    /// prompt, for reuse across the CLI, TUI Settings modal, and macOS Settings sheet
+    /// (`PLAN.md` §5 & §10 T09, T15).
     #[must_use]
-    pub fn render_disclosure_text(&self, signal: SignalKind) -> String {
+    pub fn render_disclosure_body(&self, signal: SignalKind) -> String {
         let mut out = String::new();
         let _ = writeln!(out, "Signal: {} ({})", signal.as_str(), self.display_name);
         let _ = writeln!(out, "  {}", self.summary);
@@ -61,8 +64,14 @@ impl SignalDisclosure {
         for item in &self.never_stores {
             let _ = writeln!(out, "  - {item}");
         }
-        let _ = write!(out, "\n{} [y/N]: ", self.prompt);
+        let _ = write!(out, "\n{}", self.prompt);
         out
+    }
+
+    /// Renders the multi-line consent disclosure shown by `niwa signals enable <name>` (PLAN §5).
+    #[must_use]
+    pub fn render_disclosure_text(&self, signal: SignalKind) -> String {
+        format!("{} [y/N]: ", self.render_disclosure_body(signal))
     }
 }
 

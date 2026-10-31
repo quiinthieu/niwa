@@ -30,6 +30,10 @@ public final class MenuBarViewModel {
     private nonisolated(unsafe) var watcher: SnapshotWatcher?
     @ObservationIgnored
     private nonisolated(unsafe) var periodicTimer: Timer?
+    @ObservationIgnored
+    private var cachedSettingsViewModel: SettingsViewModel?
+    @ObservationIgnored
+    private var settingsWindowController: SettingsWindowController?
     private var didAttemptInitialBootstrap = false
 
     public private(set) var snapshot: GardenSnapshot?
@@ -275,6 +279,31 @@ public final class MenuBarViewModel {
 
     public func openLoginItemsSettings() {
         loginItemManager.openSystemSettingsLoginItems()
+    }
+
+    /// Shared `SettingsViewModel` wired to refresh menu bar state whenever `niwa config set` runs.
+    public var settingsViewModel: SettingsViewModel {
+        if let existing = cachedSettingsViewModel {
+            return existing
+        }
+        let created = SettingsViewModel(
+            cli: cli,
+            consentCatalog: .current,
+            metadata: metadata,
+            onConfigChanged: { [weak self] in
+                self?.syncFromSystem()
+            }
+        )
+        cachedSettingsViewModel = created
+        return created
+    }
+
+    /// Opens and focuses the native macOS Settings window (`PLAN.md` §10 T15).
+    public func openSettingsWindow() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(viewModel: settingsViewModel)
+        }
+        settingsWindowController?.showWindow()
     }
 
     private func handleCLIActionError(_ error: any Error) {
