@@ -5,19 +5,21 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use tg_core::balance::Balance;
-use tg_core::catch_up::{AwaySummary, CatchUpOptions};
+use tg_core::catch_up::{AwaySummary, CatchUpEvent, CatchUpOptions};
 use tg_core::clock::{Clock, Timestamp, TICK_SECS};
 use tg_core::drops::{DropTable, DropTableError};
 use tg_core::model::{SimError, Stage};
 use tg_core::product;
 use tg_core::rng::rng_for_stream;
 use tg_core::season::{resolve_season, Season};
-use tg_core::sim::{Garden, TickInput};
+use tg_core::sim::Garden;
 use tg_core::species::{Rarity, SpeciesCatalog, SpriteSet};
 use tg_render::{
     compact_glyph, detect_color_tier, render_compact_frame, render_garden, ColorEnv,
     ColorPreference, ColorTier, RenderOptions, RenderedFrame, SpriteBank, Viewport,
 };
+use tg_signals::evaluator::evaluate_work_events;
+use tg_signals::EventSpool;
 use tg_store::config::{AppConfig, ColorSetting, ConfigStore};
 use tg_store::error::StoreError;
 use tg_store::paths::NiwaPaths;
@@ -209,19 +211,41 @@ impl GardenSession {
 
         let (save, garden, last_away, recovery_notice) = {
             let _lock = store.lock()?;
+            let spool = EventSpool::new(paths.clone());
+            let catch_up_opts = CatchUpOptions {
+                season_mode: config.season_mode,
+                hemisphere: config.hemisphere,
+                dormant_after_days_override: Some(config.dormant_after_days),
+            };
             match store.load()? {
                 Some(outcome) => {
                     let mut save = outcome.save;
                     let mut garden = save.to_garden();
-                    let catch_up_opts = CatchUpOptions {
-                        season_mode: config.season_mode,
-                        hemisphere: config.hemisphere,
-                        dormant_after_days_override: Some(config.dormant_after_days),
-                    };
-                    let catch_up_outcome = garden.catch_up(now, catch_up_opts, &balance, &catalog);
+                    let spool_read = spool.read()?;
+                    save.diagnostics.corrupt_spool_lines = save
+                        .diagnostics
+                        .corrupt_spool_lines
+                        .saturating_add(spool_read.corrupt_lines);
+                    let eval = evaluate_work_events(
+                        &spool_read.events,
+                        &config,
+                        &balance.signals,
+                        garden.created_at(),
+                        garden.last_tick_at(),
+                        now,
+                        &mut save.water_budget,
+                    );
+                    let catch_up_outcome = garden.catch_up_with_events(
+                        now,
+                        &eval.catch_up_events,
+                        catch_up_opts,
+                        &balance,
+                        &catalog,
+                    );
                     save.record_catch_up(&garden, &catch_up_outcome);
                     sync_almanac(&mut save, &garden, now);
                     store.save(&save)?;
+                    spool.compact(spool_read.bytes_read, &eval.retained_spool_events)?;
 
                     let season = resolve_season(
                         config.season_mode,
@@ -248,11 +272,47 @@ impl GardenSession {
                 }
                 None => {
                     let seed = seed_override.unwrap_or_else(|| derive_initial_seed(now));
-                    let garden = Garden::from_balance(seed, &balance, now);
+                    let mut garden = Garden::from_balance(seed, &balance, now);
                     let mut save = GardenSave::from_garden(&garden);
                     seed_starter_inventory(&mut save, &catalog, now);
+
+                    let spool_read = spool.read()?;
+                    let has_spool_data =
+                        !spool_read.events.is_empty() || spool_read.corrupt_lines > 0;
+                    let retained = if has_spool_data {
+                        save.diagnostics.corrupt_spool_lines = save
+                            .diagnostics
+                            .corrupt_spool_lines
+                            .saturating_add(spool_read.corrupt_lines);
+                        let eval = evaluate_work_events(
+                            &spool_read.events,
+                            &config,
+                            &balance.signals,
+                            garden.created_at(),
+                            garden.last_tick_at(),
+                            now,
+                            &mut save.water_budget,
+                        );
+                        if !eval.catch_up_events.is_empty() {
+                            let catch_up_outcome = garden.catch_up_with_events(
+                                now,
+                                &eval.catch_up_events,
+                                catch_up_opts,
+                                &balance,
+                                &catalog,
+                            );
+                            save.record_catch_up(&garden, &catch_up_outcome);
+                        }
+                        Some((spool_read.bytes_read, eval.retained_spool_events))
+                    } else {
+                        None
+                    };
+
                     sync_almanac(&mut save, &garden, now);
                     store.save(&save)?;
+                    if let Some((bytes_read, retained_events)) = retained {
+                        spool.compact(bytes_read, &retained_events)?;
+                    }
 
                     let season = resolve_season(
                         config.season_mode,
@@ -353,7 +413,8 @@ impl GardenSession {
     }
 
     /// Advances any 60-second ticks elapsed while the TUI is open as active ticks (`sun` bonus;
-    /// PLAN §4.1 & §10 T08: "The TUI counts as an active signal while open").
+    /// PLAN §4.1 & §10 T08: "The TUI counts as an active signal while open"), while also draining
+    /// any consented `events.jsonl` water events under the store lock.
     pub fn advance_open_tui_ticks(&mut self, now: Timestamp) -> Result<usize, StoreError> {
         let elapsed_secs = now
             .as_unix_secs()
@@ -361,32 +422,66 @@ impl GardenSession {
         if elapsed_secs < TICK_SECS {
             return Ok(0);
         }
-        let ticks = usize::try_from(elapsed_secs / TICK_SECS).unwrap_or(0);
+        let ticks_u64 = u64::try_from(elapsed_secs / TICK_SECS).unwrap_or(0);
+        let ticks = usize::try_from(ticks_u64).unwrap_or(0);
         if ticks == 0 {
             return Ok(0);
         }
 
-        let mut effective_balance = self.balance.clone();
-        effective_balance.dormant_after_days = self.config.dormant_after_days;
+        let store = GardenStore::new(self.paths.clone());
+        let _lock = store.lock()?;
+        let spool = EventSpool::new(self.paths.clone());
+        let spool_read = spool.read()?;
+        self.save.diagnostics.corrupt_spool_lines = self
+            .save
+            .diagnostics
+            .corrupt_spool_lines
+            .saturating_add(spool_read.corrupt_lines);
 
-        for _ in 0..ticks {
-            let next_ts = self.garden.last_tick_at().add_ticks(1);
-            let season = resolve_season(
-                self.config.season_mode,
-                self.config.hemisphere,
-                next_ts,
-                self.garden.created_at(),
-                effective_balance.seasons.season_length_days,
-            );
-            self.garden.tick_with_catalog(
-                TickInput::active(),
-                season,
-                &effective_balance,
-                &self.catalog,
-            );
+        let mut eval = evaluate_work_events(
+            &spool_read.events,
+            &self.config,
+            &self.balance.signals,
+            self.garden.created_at(),
+            self.garden.last_tick_at(),
+            now,
+            &mut self.save.water_budget,
+        );
+        for step in 1..=ticks_u64 {
+            eval.catch_up_events.push(CatchUpEvent::active_at(
+                self.garden.last_tick_at().add_ticks(step),
+            ));
         }
 
-        self.persist(now)?;
+        let catch_up_opts = CatchUpOptions {
+            season_mode: self.config.season_mode,
+            hemisphere: self.config.hemisphere,
+            dormant_after_days_override: Some(self.config.dormant_after_days),
+        };
+        let catch_up_outcome = self.garden.catch_up_with_events(
+            now,
+            &eval.catch_up_events,
+            catch_up_opts,
+            &self.balance,
+            &self.catalog,
+        );
+        self.save.record_catch_up(&self.garden, &catch_up_outcome);
+        sync_almanac(&mut self.save, &self.garden, now);
+        store.save(&self.save)?;
+        if !spool_read.events.is_empty() || spool_read.corrupt_lines > 0 {
+            spool.compact(spool_read.bytes_read, &eval.retained_spool_events)?;
+        }
+
+        let season = self.current_season();
+        let snap = build_snapshot(
+            &self.garden,
+            &self.config,
+            &self.catalog,
+            &self.sprites,
+            season,
+            now.max(self.garden.last_tick_at()),
+        );
+        write_snapshot(&self.paths, &snap)?;
         Ok(ticks)
     }
 

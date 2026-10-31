@@ -1,13 +1,16 @@
-//! `clap` command-line interface and subcommand handlers for `niwa` (PLAN §3.4, §5, §6 & §10 T08).
+//! `clap` command-line interface and subcommand handlers for `niwa` (PLAN §3.4, §5, §6, §10 T08 & T09).
 
 use crate::runtime::{format_status_human, resolve_color_tier, GardenSession};
 use crate::tui::ui::run_interactive_tui;
 use clap::{Args, Parser, Subcommand};
 use std::io::{self, BufRead, Write};
+use std::str::FromStr;
 use tg_core::clock::Clock;
 use tg_core::product;
 use tg_core::species::SpriteSet;
 use tg_render::Viewport;
+use tg_signals::consent::{is_signal_enabled, ConsentCatalog};
+use tg_signals::{EventSpool, SignalKind};
 use tg_store::clock::SystemClock;
 use tg_store::config::{AppConfig, ConfigStore};
 use tg_store::paths::NiwaPaths;
@@ -43,6 +46,8 @@ pub enum Commands {
         #[command(subcommand)]
         action: ConfigCommand,
     },
+    /// Inspect, enable (with explicit consent), or disable opt-in local work signals.
+    Signals(SignalsArgs),
     /// Delete persisted garden state (and `--all` to also remove `config.toml` and `events.jsonl`).
     Reset(ResetArgs),
 }
@@ -82,6 +87,34 @@ pub enum ConfigCommand {
 }
 
 #[derive(Args, Debug)]
+pub struct SignalsArgs {
+    #[command(subcommand)]
+    pub action: Option<SignalsCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SignalsCommand {
+    /// List all work signals, their consent status, and queued spool counts.
+    List,
+    /// Show the exact storage disclosure for a signal and wait for `y` to opt in.
+    Enable {
+        /// Opt-in signal name (`activity`, `git`, or `shell`).
+        signal: String,
+        /// Accept the printed consent disclosure non-interactively without prompting stdin.
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
+    /// Stop collecting a signal (and with `--purge`, delete its queued events and consent record).
+    Disable {
+        /// Opt-in signal name (`activity`, `git`, or `shell`).
+        signal: String,
+        /// Delete queued events for this signal from `events.jsonl` and clear `consented_at`.
+        #[arg(long)]
+        purge: bool,
+    },
+}
+
+#[derive(Args, Debug)]
 pub struct ResetArgs {
     /// Also delete `config.toml`, `events.jsonl`, and `garden.lock` (PLAN §5).
     #[arg(long)]
@@ -111,6 +144,7 @@ pub fn execute_with(cli: Cli, paths: NiwaPaths, clock: &dyn Clock) -> anyhow::Re
         Some(Commands::Peek(args)) => run_peek(paths, clock, cli.no_color, &args),
         Some(Commands::Status(args)) => run_status(paths, clock, &args),
         Some(Commands::Config { action }) => run_config(paths, clock, action),
+        Some(Commands::Signals(args)) => run_signals(paths, clock, args),
         Some(Commands::Reset(args)) => run_reset(paths, &args),
     }
 }
@@ -190,6 +224,118 @@ fn run_config(paths: NiwaPaths, clock: &dyn Clock, action: ConfigCommand) -> any
         }
         ConfigCommand::Path => {
             writeln!(stdout, "{}", paths.config_file().display())?;
+        }
+    }
+    Ok(())
+}
+
+fn run_signals(paths: NiwaPaths, clock: &dyn Clock, args: SignalsArgs) -> anyhow::Result<()> {
+    let stdin = io::stdin();
+    let stdout = io::stdout();
+    let mut reader = stdin.lock();
+    let mut writer = stdout.lock();
+    run_signals_with_io(paths, clock, args, &mut reader, &mut writer)
+}
+
+/// Testable `niwa signals` handler accepting injected [`BufRead`] and [`Write`] streams.
+pub fn run_signals_with_io(
+    paths: NiwaPaths,
+    clock: &dyn Clock,
+    args: SignalsArgs,
+    reader: &mut dyn BufRead,
+    writer: &mut dyn Write,
+) -> anyhow::Result<()> {
+    let config_store = ConfigStore::new(paths.clone());
+    let spool = EventSpool::new(paths);
+    let catalog = ConsentCatalog::load_default();
+
+    match args.action.unwrap_or(SignalsCommand::List) {
+        SignalsCommand::List => {
+            let config = config_store.load()?;
+            let counts = spool.count_by_signal()?;
+            let baseline = catalog.baseline();
+
+            writeln!(
+                writer,
+                "time      always on  — {} (stores: {})",
+                baseline.summary,
+                baseline.stores.join("; ")
+            )?;
+
+            for kind in SignalKind::ALL {
+                let disclosure = catalog.signal(kind);
+                let consent = config.signals.consent(kind);
+                let status = if is_signal_enabled(&config, kind) {
+                    let ts = consent.consented_at.map_or(0, |t| t.as_unix_secs());
+                    format!("enabled (consented_at = {ts})")
+                } else {
+                    "disabled".to_string()
+                };
+                let queued = counts.for_signal(kind);
+                writeln!(
+                    writer,
+                    "{:<8}  {:<34}  queued: {:<4}  — {}",
+                    kind.as_str(),
+                    status,
+                    queued,
+                    disclosure.summary
+                )?;
+            }
+        }
+        SignalsCommand::Enable { signal, yes } => {
+            let kind = SignalKind::from_str(&signal)?;
+            let disclosure = catalog.signal(kind);
+
+            write!(writer, "{}", disclosure.render_disclosure_text(kind))?;
+            writer.flush()?;
+
+            let accepted = if yes {
+                writeln!(writer, "y")?;
+                true
+            } else {
+                let mut answer = String::new();
+                reader.read_line(&mut answer)?;
+                let trimmed = answer.trim();
+                trimmed.eq_ignore_ascii_case("y") || trimmed.eq_ignore_ascii_case("yes")
+            };
+
+            if !accepted {
+                writeln!(
+                    writer,
+                    "Signal '{}' remains disabled (consent not given).",
+                    kind.as_str()
+                )?;
+                return Ok(());
+            }
+
+            let now = clock.now();
+            let mut config = config_store.load()?;
+            config.enable_signal(kind, now);
+            config_store.save(&config)?;
+            writeln!(
+                writer,
+                "Enabled signal '{}' (consented_at = {}).",
+                kind.as_str(),
+                now.as_unix_secs()
+            )?;
+        }
+        SignalsCommand::Disable { signal, purge } => {
+            let kind = SignalKind::from_str(&signal)?;
+            let mut config = config_store.load()?;
+            config.disable_signal(kind, purge);
+            config_store.save(&config)?;
+
+            if purge {
+                let outcome = spool.purge_signal(kind)?;
+                writeln!(
+                    writer,
+                    "Disabled signal '{}' and purged {} queued event(s).",
+                    kind.as_str(),
+                    outcome.removed_events
+                )?;
+            } else {
+                writeln!(writer, "Disabled signal '{}'.", kind.as_str())?;
+            }
         }
     }
     Ok(())
