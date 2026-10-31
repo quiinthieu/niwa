@@ -4,6 +4,7 @@
 use crate::runtime::GardenSession;
 use crate::tui::app::{Overlay, TuiApp};
 use crate::tui::scheduler::SIM_TICK_INTERVAL;
+use crate::tui::settings::{SettingsField, SettingsState};
 use crossterm::event::{self, DisableFocusChange, EnableFocusChange};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -23,6 +24,8 @@ use tg_core::model::Stage;
 use tg_core::species::{Species, SpriteSet};
 use tg_render::color::Ansi16Color;
 use tg_render::{ColorTier, RenderedLine, StyleSpec, Viewport};
+use tg_signals::consent::ConsentCatalog;
+use tg_signals::SignalKind;
 
 /// Draws the complete `TuiApp` view (garden canvas, non-color-only plot inspector bar, status bar,
 /// and any active modal overlay) into `frame`.
@@ -78,6 +81,10 @@ pub fn draw_ui(frame: &mut Frame<'_>, app: &TuiApp) {
                 draw_compost_modal(frame, area, app, *plot_index);
             }
             Overlay::Almanac { cursor } => draw_almanac_modal(frame, area, app, *cursor),
+            Overlay::Settings(state) => draw_settings_modal(frame, area, app, state),
+            Overlay::SignalConsent { signal, .. } => {
+                draw_signal_consent_modal(frame, area, app, *signal);
+            }
             Overlay::Help => draw_help_modal(frame, area, app),
         }
     }
@@ -486,8 +493,125 @@ fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: u
     frame.render_widget(widget, rect);
 }
 
+fn draw_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, state: &SettingsState) {
+    let rect = centered_rect(area, 86, 25);
+    frame.render_widget(Clear, rect);
+
+    let config = app.session().config();
+    let total = SettingsField::ALL.len();
+    let clamped_cursor = state.cursor.min(total - 1);
+
+    let inner_height = usize::from(rect.height.saturating_sub(2));
+    let list_budget = inner_height.saturating_sub(5).max(3);
+    let start_idx = if clamped_cursor >= list_budget {
+        clamped_cursor + 1 - list_budget
+    } else {
+        0
+    };
+    let end_idx = (start_idx + list_budget).min(total);
+
+    let mut lines = Vec::new();
+    lines.push(Line::from(format!(
+        "Settings ({}/{} — [Up/Down] select, [Left/Right/Enter] change, [Esc] close)",
+        clamped_cursor + 1,
+        total
+    )));
+    lines.push(Line::from(""));
+
+    for (idx, &field) in SettingsField::ALL
+        .iter()
+        .enumerate()
+        .take(end_idx)
+        .skip(start_idx)
+    {
+        let selected = idx == clamped_cursor;
+        let marker = if selected { ">" } else { " " };
+        let value_text = if selected {
+            if let Some(ref buf) = state.edit_buffer {
+                format!("[editing: {buf}_]")
+            } else {
+                field.display_value(config)
+            }
+        } else {
+            field.display_value(config)
+        };
+
+        let row = format!(
+            "{marker} {:<24} ({:<29}) = {value_text}",
+            field.label(),
+            field.key()
+        );
+        let style = if selected {
+            Style::default().add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+        lines.push(Line::from(Span::styled(row, style)));
+    }
+
+    lines.push(Line::from(""));
+    let selected_field = SettingsField::ALL[clamped_cursor];
+    if let Some(ref err) = state.error_message {
+        lines.push(Line::from(Span::styled(
+            format!("! {err} ([Enter] retry, [Ctrl-U] clear, [Esc] cancel)"),
+            Style::default().add_modifier(Modifier::BOLD),
+        )));
+    } else if state.edit_buffer.is_some() {
+        lines.push(Line::from(
+            "Editing value — [Enter] save via `niwa config set`, [Ctrl-U] clear, [Esc] cancel",
+        ));
+    } else {
+        lines.push(Line::from(selected_field.hint()));
+    }
+
+    let widget = Paragraph::new(Text::from(lines))
+        .block(modal_block(
+            " Settings (config.toml) ".to_string(),
+            config.sprites,
+        ))
+        .wrap(Wrap { trim: false });
+    frame.render_widget(widget, rect);
+}
+
+fn draw_signal_consent_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, signal: SignalKind) {
+    let rect = centered_rect(area, 108, 24);
+    frame.render_widget(Clear, rect);
+
+    let catalog = ConsentCatalog::load_default();
+    let disclosure = catalog.signal(signal);
+    let body = disclosure.render_disclosure_body(signal);
+
+    let mut lines: Vec<Line<'static>> = body
+        .lines()
+        .enumerate()
+        .map(|(idx, line)| {
+            if idx == 0 {
+                Line::from(Span::styled(
+                    line.to_string(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ))
+            } else {
+                Line::from(line.to_string())
+            }
+        })
+        .collect();
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "[y / Enter] Enable signal (records consent)   [n / Esc] Cancel",
+        Style::default().add_modifier(Modifier::BOLD),
+    )));
+
+    let widget = Paragraph::new(Text::from(lines))
+        .block(modal_block(
+            format!(" Signal Consent: {} ", signal.as_str()),
+            app.session().config().sprites,
+        ))
+        .wrap(Wrap { trim: false });
+    frame.render_widget(widget, rect);
+}
+
 fn draw_help_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
-    let rect = centered_rect(area, 64, 16);
+    let rect = centered_rect(area, 64, 17);
     frame.render_widget(Clear, rect);
 
     let lines = vec![
@@ -501,6 +625,7 @@ fn draw_help_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp) {
         Line::from("  m                    Move a plant to another empty plot"),
         Line::from("  c                    Compost a plant (returns 1 same-rarity seed)"),
         Line::from("  a                    Open the Almanac"),
+        Line::from("  s                    Open Settings (config.toml & signals)"),
         Line::from("  ?                    Toggle this Help screen"),
         Line::from("  q / Ctrl-C           Save and quit"),
         Line::from(""),

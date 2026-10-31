@@ -1,8 +1,9 @@
 //! Pure event-driven TUI state machine (`TuiApp`) testable on `ratatui::backend::TestBackend`
 //! with an injected [`tg_core::clock::Clock`] (PLAN §4.2, §4.3, §7 & §10 T08).
 
-use crate::runtime::{ActionError, GardenSession};
+use crate::runtime::{resolve_color_tier, ActionError, GardenSession};
 use crate::tui::scheduler::FrameScheduler;
+use crate::tui::settings::{SettingsField, SettingsState};
 use crate::tui::ui::draw_ui;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::backend::Backend;
@@ -12,6 +13,7 @@ use tg_core::catch_up::AwaySummary;
 use tg_core::clock::Clock;
 use tg_core::species::Rarity;
 use tg_render::ColorTier;
+use tg_signals::SignalKind;
 use tg_store::error::StoreError;
 
 /// Discriminant of the currently open modal overlay (if any).
@@ -21,15 +23,28 @@ pub enum OverlayKind {
     SeedPicker,
     ConfirmCompost,
     Almanac,
+    Settings,
+    SignalConsent,
     Help,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Overlay {
     AwaySummary(AwaySummary),
-    SeedPicker { cursor: usize },
-    ConfirmCompost { plot_index: usize },
-    Almanac { cursor: usize },
+    SeedPicker {
+        cursor: usize,
+    },
+    ConfirmCompost {
+        plot_index: usize,
+    },
+    Almanac {
+        cursor: usize,
+    },
+    Settings(SettingsState),
+    SignalConsent {
+        signal: SignalKind,
+        return_cursor: usize,
+    },
     Help,
 }
 
@@ -40,6 +55,8 @@ impl Overlay {
             Self::SeedPicker { .. } => OverlayKind::SeedPicker,
             Self::ConfirmCompost { .. } => OverlayKind::ConfirmCompost,
             Self::Almanac { .. } => OverlayKind::Almanac,
+            Self::Settings(_) => OverlayKind::Settings,
+            Self::SignalConsent { .. } => OverlayKind::SignalConsent,
             Self::Help => OverlayKind::Help,
         }
     }
@@ -82,7 +99,7 @@ impl TuiApp {
         let status_message = if let Some(notice) = session.recovery_notice() {
             notice.to_string()
         } else {
-            "Welcome to Niwa — [p]lant [h]arvest [m]ove [c]ompost [a]lmanac [?]help [q]uit"
+            "Welcome to Niwa — [p]lant [h]arvest [m]ove [c]ompost [a]lmanac [s]ettings [?]help [q]uit"
                 .to_string()
         };
 
@@ -131,6 +148,15 @@ impl TuiApp {
     #[must_use]
     pub fn overlay_kind(&self) -> Option<OverlayKind> {
         self.overlay.as_ref().map(Overlay::kind)
+    }
+
+    /// Returns the currently highlighted [`SettingsField`] when the Settings modal is open.
+    #[must_use]
+    pub fn selected_settings_field(&self) -> Option<SettingsField> {
+        match &self.overlay {
+            Some(Overlay::Settings(state)) => Some(state.selected_field()),
+            _ => None,
+        }
     }
 
     #[must_use]
@@ -379,6 +405,15 @@ impl TuiApp {
                     _ => {}
                 }
             }
+            Overlay::Settings(state) => {
+                self.handle_settings_key(state, key, clock)?;
+            }
+            Overlay::SignalConsent {
+                signal,
+                return_cursor,
+            } => {
+                self.handle_signal_consent_key(signal, return_cursor, key, clock)?;
+            }
             Overlay::Help => {
                 if matches!(
                     key.code,
@@ -389,6 +424,248 @@ impl TuiApp {
             }
         }
         Ok(())
+    }
+
+    fn handle_settings_key(
+        &mut self,
+        mut state: SettingsState,
+        key: KeyEvent,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        let total = SettingsField::ALL.len();
+        state.cursor = state.cursor.min(total - 1);
+        let field = state.selected_field();
+
+        if let Some(mut buffer) = state.edit_buffer.take() {
+            match key.code {
+                KeyCode::Esc => {
+                    state.error_message = None;
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+                KeyCode::Backspace => {
+                    buffer.pop();
+                    state.edit_buffer = Some(buffer);
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+                KeyCode::Char(ch) if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    if matches!(ch, 'u' | 'U') {
+                        buffer.clear();
+                    }
+                    state.edit_buffer = Some(buffer);
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+                KeyCode::Char(ch) => {
+                    buffer.push(ch);
+                    state.edit_buffer = Some(buffer);
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+                KeyCode::Enter => {
+                    let trimmed = buffer.trim();
+                    let value_to_write = if trimmed.is_empty() && field.supports_clear_to_none() {
+                        "none"
+                    } else {
+                        trimmed
+                    };
+                    match self.apply_settings_write(field.key(), value_to_write, clock)? {
+                        Ok(_) => {
+                            state.error_message = None;
+                        }
+                        Err(validation_msg) => {
+                            state.error_message = Some(validation_msg);
+                            state.edit_buffer = Some(buffer);
+                        }
+                    }
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+                _ => {
+                    state.edit_buffer = Some(buffer);
+                    self.overlay = Some(Overlay::Settings(state));
+                }
+            }
+            return Ok(());
+        }
+
+        match key.code {
+            KeyCode::Up | KeyCode::Char('k') => {
+                state.cursor = state.cursor.saturating_sub(1);
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                if state.cursor + 1 < total {
+                    state.cursor += 1;
+                }
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::PageUp => {
+                state.cursor = state.cursor.saturating_sub(5);
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::PageDown => {
+                state.cursor = (state.cursor + 5).min(total - 1);
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Home => {
+                state.cursor = 0;
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::End => {
+                state.cursor = total - 1;
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Left => {
+                if let Some(signal) = field.signal_consent_kind() {
+                    if self.session.config().signals.consent(signal).enabled {
+                        let _ = self.apply_settings_write(field.key(), "false", clock)?;
+                    }
+                } else if let Some(next_val) = field.step_directional(self.session.config(), false)
+                {
+                    let _ = self.apply_settings_write(field.key(), &next_val, clock)?;
+                }
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Right => {
+                if let Some(signal) = field.signal_consent_kind() {
+                    if !self.session.config().signals.consent(signal).enabled {
+                        self.overlay = Some(Overlay::SignalConsent {
+                            signal,
+                            return_cursor: state.cursor,
+                        });
+                        return Ok(());
+                    }
+                } else if let Some(next_val) = field.step_directional(self.session.config(), true) {
+                    let _ = self.apply_settings_write(field.key(), &next_val, clock)?;
+                }
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                if let Some(signal) = field.signal_consent_kind() {
+                    if self.session.config().signals.consent(signal).enabled {
+                        let _ = self.apply_settings_write(field.key(), "false", clock)?;
+                        state.error_message = None;
+                        self.overlay = Some(Overlay::Settings(state));
+                    } else {
+                        self.overlay = Some(Overlay::SignalConsent {
+                            signal,
+                            return_cursor: state.cursor,
+                        });
+                    }
+                    return Ok(());
+                }
+
+                if key.code == KeyCode::Enter && field.supports_inline_edit() {
+                    state.edit_buffer = Some(field.initial_edit_buffer(self.session.config()));
+                    state.error_message = None;
+                    self.overlay = Some(Overlay::Settings(state));
+                    return Ok(());
+                }
+
+                if let Some(next_val) = field.cycle_on_activate(self.session.config()) {
+                    let _ = self.apply_settings_write(field.key(), &next_val, clock)?;
+                }
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Delete | KeyCode::Backspace | KeyCode::Char('x')
+                if field.supports_clear_to_none() =>
+            {
+                let _ = self.apply_settings_write(field.key(), "none", clock)?;
+                state.error_message = None;
+                self.overlay = Some(Overlay::Settings(state));
+            }
+            KeyCode::Esc | KeyCode::Char('s' | 'q') => {
+                self.overlay = None;
+            }
+            _ => {
+                self.overlay = Some(Overlay::Settings(state));
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_signal_consent_key(
+        &mut self,
+        signal: SignalKind,
+        return_cursor: usize,
+        key: KeyEvent,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        match key.code {
+            KeyCode::Char('y' | 'Y') | KeyCode::Enter => {
+                let key_name = format!("signals.{}.enabled", signal.as_str());
+                let _ = self.apply_settings_write(&key_name, "true", clock)?;
+                let ts = self
+                    .session
+                    .config()
+                    .signals
+                    .consent(signal)
+                    .consented_at
+                    .map_or(0, |t| t.as_unix_secs());
+                self.status_message = format!(
+                    "Enabled signal '{}' (consented_at = {ts}).",
+                    signal.as_str()
+                );
+                self.overlay = Some(Overlay::Settings(SettingsState {
+                    cursor: return_cursor,
+                    edit_buffer: None,
+                    error_message: None,
+                }));
+            }
+            KeyCode::Char('n' | 'N') | KeyCode::Esc => {
+                self.status_message = format!(
+                    "Signal '{}' remains disabled (consent not given).",
+                    signal.as_str()
+                );
+                self.overlay = Some(Overlay::Settings(SettingsState {
+                    cursor: return_cursor,
+                    edit_buffer: None,
+                    error_message: None,
+                }));
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn apply_settings_write(
+        &mut self,
+        key: &str,
+        value: &str,
+        clock: &dyn Clock,
+    ) -> Result<Result<String, String>, StoreError> {
+        match self.session.set_config_key(key, value, clock) {
+            Ok(normalized) => {
+                if key == "fps" {
+                    self.scheduler.set_fps(self.session.config().fps);
+                } else if key == "color" {
+                    self.color_tier = resolve_color_tier(self.session.config(), false);
+                }
+                let shown = if normalized.is_empty() {
+                    "none".to_string()
+                } else {
+                    normalized.clone()
+                };
+                self.status_message = format!("Updated {key} = {shown}");
+                Ok(Ok(normalized))
+            }
+            Err(StoreError::InvalidConfigValue {
+                key: err_key,
+                reason,
+                ..
+            }) => {
+                let msg = format!("Invalid {err_key}: {reason}");
+                self.status_message.clone_from(&msg);
+                Ok(Err(msg))
+            }
+            Err(err) => Err(err),
+        }
     }
 
     fn handle_move_mode_key(
@@ -496,6 +773,9 @@ impl TuiApp {
             }
             KeyCode::Char('a') => {
                 self.overlay = Some(Overlay::Almanac { cursor: 0 });
+            }
+            KeyCode::Char('s') => {
+                self.overlay = Some(Overlay::Settings(SettingsState::default()));
             }
             KeyCode::Char('?') => {
                 self.overlay = Some(Overlay::Help);

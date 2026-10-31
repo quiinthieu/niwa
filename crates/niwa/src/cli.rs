@@ -6,7 +6,7 @@ use crate::daemon::{
 use crate::hook::{run_hook_with_writer, HookArgs};
 use crate::ingest::{run_ingest, IngestArgs};
 use crate::prompt::{run_prompt_with_writer, PromptArgs};
-use crate::runtime::{format_status_human, resolve_color_tier, GardenSession};
+use crate::runtime::{apply_config_set, format_status_human, resolve_color_tier, GardenSession};
 use crate::tui::ui::run_interactive_tui;
 use clap::{Args, Parser, Subcommand};
 use std::io::{self, BufRead, Write};
@@ -343,10 +343,7 @@ fn run_config(paths: NiwaPaths, clock: &dyn Clock, action: ConfigCommand) -> any
             writeln!(stdout, "{value}")?;
         }
         ConfigCommand::Set { key, value } => {
-            let mut config = store.load()?;
-            config.set_key_with_timestamp(&key, &value, Some(clock.now()))?;
-            store.save(&config)?;
-            let normalized = config.get_key(&key)?;
+            let (_, normalized) = apply_config_set(&paths, clock, &key, &value)?;
             writeln!(stdout, "{key} = {normalized}")?;
         }
         ConfigCommand::List => {
