@@ -247,8 +247,9 @@ fn run_posix_shell_piped(
     )
 }
 
-/// Drives `fish -i` inside a real POSIX PTY (`isatty(0) == 1`) synchronized on `PROMPT_EC=`
-/// so Fish uses its interactive line reader (`fish_postexec` + `fish_prompt`).
+/// Drives `fish -i` inside a real controlling PTY (`pty.fork()` -> `setsid` + `TIOCSCTTY`)
+/// synchronized turn-by-turn on `PROMPT_EC=` so Fish uses its interactive line reader
+/// (`fish_postexec` + `fish_prompt`) on both Linux and macOS CI runners.
 fn run_fish_in_pty(
     env: &TestEnv,
     fish_binary: &Path,
@@ -256,34 +257,24 @@ fn run_fish_in_pty(
     secret_path_token: &str,
 ) -> (bool, String, String) {
     let py_driver = r#"
-import os, pty, select, subprocess, sys, time
+import os, pty, select, signal, sys, time
 
 fish_bin, secret_cmd, secret_path = sys.argv[1], sys.argv[2], sys.argv[3]
-master, slave = pty.openpty()
-proc = subprocess.Popen(
-    [fish_bin, "-i"],
-    stdin=slave,
-    stdout=slave,
-    stderr=slave,
-    start_new_session=True,
-    close_fds=True,
-)
-os.close(slave)
+pid, master = pty.fork()
+if pid == 0:
+    os.execv(fish_bin, [fish_bin, "-i"])
 
 transcript = bytearray()
 
-def wait_for_prompt(target_count):
-    deadline = time.monotonic() + 15.0
-    while transcript.count(b"PROMPT_EC=") < target_count:
-        rem = deadline - time.monotonic()
+def drain_quiet(window_secs=0.03):
+    end = time.monotonic() + window_secs
+    while True:
+        rem = end - time.monotonic()
         if rem <= 0:
-            sys.stderr.write("Timed out waiting for fish prompt #" + str(target_count) + "\n")
-            sys.stdout.buffer.write(bytes(transcript))
-            proc.kill()
-            sys.exit(99)
+            break
         ready, _, _ = select.select([master], [], [], rem)
         if not ready:
-            continue
+            break
         try:
             chunk = os.read(master, 4096)
         except OSError:
@@ -292,41 +283,88 @@ def wait_for_prompt(target_count):
             break
         transcript.extend(chunk)
 
+def wait_for_prompt_since(cursor, step_label):
+    deadline = time.monotonic() + 15.0
+    while b"PROMPT_EC=" not in transcript[cursor:]:
+        rem = deadline - time.monotonic()
+        if rem <= 0:
+            sys.stderr.write(f"Timed out waiting for fish prompt ({step_label})\n")
+            sys.stdout.buffer.write(bytes(transcript))
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+            sys.exit(99)
+        ready, _, _ = select.select([master], [], [], min(rem, 0.25))
+        if not ready:
+            wpid, wst = os.waitpid(pid, os.WNOHANG)
+            if wpid == pid:
+                ec = os.waitstatus_to_exitcode(wst)
+                sys.stderr.write(f"fish exited early ({ec}) during {step_label}\n")
+                sys.stdout.buffer.write(bytes(transcript))
+                sys.exit(ec if ec != 0 else 98)
+            continue
+        try:
+            chunk = os.read(master, 4096)
+        except OSError as exc:
+            sys.stderr.write(f"PTY OSError during {step_label}: {exc}\n")
+            sys.stdout.buffer.write(bytes(transcript))
+            _, wst = os.waitpid(pid, 0)
+            ec = os.waitstatus_to_exitcode(wst)
+            sys.exit(ec if ec != 0 else 97)
+        if not chunk:
+            sys.stderr.write(f"PTY EOF during {step_label}\n")
+            sys.stdout.buffer.write(bytes(transcript))
+            _, wst = os.waitpid(pid, 0)
+            ec = os.waitstatus_to_exitcode(wst)
+            sys.exit(ec if ec != 0 else 96)
+        transcript.extend(chunk)
+    drain_quiet()
+
+wait_for_prompt_since(0, "initial_prompt")
+
 commands = [
-    "\n",
-    f"echo {secret_cmd} {secret_path} >/dev/null\n",
-    "sh -c 'exit 7'\n",
-    "sleep 1\n",
-    "\n",
+    ("blank_1", "\r"),
+    ("secret_echo", f"echo {secret_cmd} {secret_path} >/dev/null\r"),
+    ("fail_7", "sh -c 'exit 7'\r"),
+    ("sleep_1", "sleep 1\r"),
+    ("blank_2", "\r"),
 ]
 
-expected = 1
-wait_for_prompt(expected)
-for line in commands:
+for label, line in commands:
+    cursor = len(transcript)
     os.write(master, line.encode("utf-8"))
-    expected += 1
-    wait_for_prompt(expected)
+    wait_for_prompt_since(cursor, label)
 
-os.write(master, b"exit 0\n")
+os.write(master, b"exit 0\r")
 end_deadline = time.monotonic() + 10.0
+exit_code = None
 while time.monotonic() < end_deadline:
-    ready, _, _ = select.select([master], [], [], 0.5)
-    if not ready:
-        if proc.poll() is not None:
-            break
-        continue
+    ready, _, _ = select.select([master], [], [], 0.2)
+    if ready:
+        try:
+            chunk = os.read(master, 4096)
+            if chunk:
+                transcript.extend(chunk)
+                continue
+        except OSError:
+            pass
+    wpid, wst = os.waitpid(pid, os.WNOHANG)
+    if wpid == pid:
+        exit_code = os.waitstatus_to_exitcode(wst)
+        break
+
+if exit_code is None:
     try:
-        chunk = os.read(master, 4096)
+        os.kill(pid, signal.SIGKILL)
     except OSError:
-        break
-    if not chunk:
-        break
-    transcript.extend(chunk)
+        pass
+    _, wst = os.waitpid(pid, 0)
+    exit_code = os.waitstatus_to_exitcode(wst)
 
 os.close(master)
-rc = proc.wait(timeout=10)
 sys.stdout.buffer.write(bytes(transcript))
-sys.exit(rc)
+sys.exit(exit_code)
 "#;
 
     let mut cmd = StdCommand::new("python3");
