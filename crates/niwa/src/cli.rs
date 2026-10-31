@@ -1,18 +1,24 @@
-//! `clap` command-line interface and subcommand handlers for `niwa` (PLAN §3.4, §5, §6, §10 T08 & T09).
+//! `clap` command-line interface and subcommand handlers for `niwa` (PLAN §3.4, §5, §6, §10 T08–T10).
 
+use crate::daemon::{
+    run_daemon_install, run_daemon_loop, run_daemon_status, run_daemon_uninstall, ThreadSleeper,
+};
 use crate::runtime::{format_status_human, resolve_color_tier, GardenSession};
 use crate::tui::ui::run_interactive_tui;
 use clap::{Args, Parser, Subcommand};
 use std::io::{self, BufRead, Write};
+use std::path::PathBuf;
 use std::str::FromStr;
 use tg_core::clock::Clock;
 use tg_core::product;
 use tg_core::species::SpriteSet;
 use tg_render::Viewport;
+use tg_signals::activity::PlatformIdleSource;
 use tg_signals::consent::{is_signal_enabled, ConsentCatalog};
 use tg_signals::{EventSpool, SignalKind};
 use tg_store::clock::SystemClock;
 use tg_store::config::{AppConfig, ConfigStore};
+use tg_store::daemon_units::DaemonUnitPaths;
 use tg_store::paths::NiwaPaths;
 use tg_store::save::GardenStore;
 
@@ -48,6 +54,8 @@ pub enum Commands {
     },
     /// Inspect, enable (with explicit consent), or disable opt-in local work signals.
     Signals(SignalsArgs),
+    /// Run the 60-second background daemon loop or install/uninstall per-user service units.
+    Daemon(DaemonArgs),
     /// Delete persisted garden state (and `--all` to also remove `config.toml` and `events.jsonl`).
     Reset(ResetArgs),
 }
@@ -115,6 +123,45 @@ pub enum SignalsCommand {
 }
 
 #[derive(Args, Debug)]
+#[command(args_conflicts_with_subcommands = true)]
+pub struct DaemonArgs {
+    /// Run a single daemon wake check and exit instead of looping every 60 seconds.
+    #[arg(long)]
+    pub once: bool,
+
+    /// Stop after at most N wake iterations.
+    #[arg(long, value_name = "N")]
+    pub max_ticks: Option<u64>,
+
+    #[command(subcommand)]
+    pub action: Option<DaemonCommand>,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DaemonCommand {
+    /// Run the 60-second background daemon loop (default when no subcommand is given).
+    Run {
+        /// Run a single daemon wake check and exit instead of looping every 60 seconds.
+        #[arg(long)]
+        once: bool,
+
+        /// Stop after at most N wake iterations.
+        #[arg(long, value_name = "N")]
+        max_ticks: Option<u64>,
+    },
+    /// Write the per-user launchd (macOS) or systemd (Linux) daemon unit file.
+    Install {
+        /// Override the `niwa` binary path embedded in the unit file (defaults to current executable).
+        #[arg(long)]
+        bin: Option<PathBuf>,
+    },
+    /// Remove the per-user launchd (macOS) or systemd (Linux) daemon unit file.
+    Uninstall,
+    /// Report the user unit path, installation state, and active signal wake status.
+    Status,
+}
+
+#[derive(Args, Debug)]
 pub struct ResetArgs {
     /// Also delete `config.toml`, `events.jsonl`, and `garden.lock` (PLAN §5).
     #[arg(long)]
@@ -145,6 +192,7 @@ pub fn execute_with(cli: Cli, paths: NiwaPaths, clock: &dyn Clock) -> anyhow::Re
         Some(Commands::Status(args)) => run_status(paths, clock, &args),
         Some(Commands::Config { action }) => run_config(paths, clock, action),
         Some(Commands::Signals(args)) => run_signals(paths, clock, args),
+        Some(Commands::Daemon(args)) => run_daemon(paths, clock, args),
         Some(Commands::Reset(args)) => run_reset(paths, &args),
     }
 }
@@ -339,6 +387,50 @@ pub fn run_signals_with_io(
         }
     }
     Ok(())
+}
+
+fn run_daemon(paths: NiwaPaths, clock: &dyn Clock, args: DaemonArgs) -> anyhow::Result<()> {
+    match args.action {
+        None => {
+            let max_wakes = resolve_daemon_max_wakes(args.once, args.max_ticks);
+            let _ = run_daemon_loop(paths, clock, &PlatformIdleSource, &ThreadSleeper, max_wakes)?;
+            Ok(())
+        }
+        Some(DaemonCommand::Run { once, max_ticks }) => {
+            let max_wakes = resolve_daemon_max_wakes(once, max_ticks);
+            let _ = run_daemon_loop(paths, clock, &PlatformIdleSource, &ThreadSleeper, max_wakes)?;
+            Ok(())
+        }
+        Some(DaemonCommand::Install { bin }) => {
+            let unit_paths = DaemonUnitPaths::resolve()?;
+            let binary_path = match bin {
+                Some(override_bin) => override_bin,
+                None => std::env::current_exe()?,
+            };
+            let mut stdout = io::stdout().lock();
+            let _ = run_daemon_install(&unit_paths, &binary_path, &mut stdout)?;
+            Ok(())
+        }
+        Some(DaemonCommand::Uninstall) => {
+            let unit_paths = DaemonUnitPaths::resolve()?;
+            let mut stdout = io::stdout().lock();
+            let _ = run_daemon_uninstall(&unit_paths, &mut stdout)?;
+            Ok(())
+        }
+        Some(DaemonCommand::Status) => {
+            let unit_paths = DaemonUnitPaths::resolve()?;
+            let mut stdout = io::stdout().lock();
+            run_daemon_status(&paths, &unit_paths, &mut stdout)
+        }
+    }
+}
+
+const fn resolve_daemon_max_wakes(once: bool, max_ticks: Option<u64>) -> Option<u64> {
+    if once {
+        Some(1)
+    } else {
+        max_ticks
+    }
 }
 
 fn run_reset(paths: NiwaPaths, args: &ResetArgs) -> anyhow::Result<()> {

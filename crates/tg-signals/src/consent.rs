@@ -222,6 +222,17 @@ pub const fn is_signal_enabled(config: &AppConfig, signal: SignalKind) -> bool {
     consent.enabled && consent.consented_at.is_some()
 }
 
+/// Returns `true` when at least one opt-in work signal (`activity`, `git`, or `shell`) is enabled.
+///
+/// Used by `niwa daemon` to skip waking and exit immediately when no signal is enabled
+/// (`PLAN.md` §7 & §10 T10).
+#[must_use]
+pub fn any_signal_enabled(config: &AppConfig) -> bool {
+    SignalKind::ALL
+        .into_iter()
+        .any(|kind| is_signal_enabled(config, kind))
+}
+
 /// Returns `true` only when `event`'s signal is enabled AND `event.timestamp() >= consented_at`.
 #[must_use]
 pub fn is_event_consented(config: &AppConfig, event: WorkEvent) -> bool {
