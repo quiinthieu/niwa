@@ -172,7 +172,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* a bad species file gives a clear error with file and line. The season boundary tests pass for both hemispheres. Drop-table sampling over a fixed seed is golden.
 - [x] **T05 Store.** Paths, `garden.json` v1, atomic write + `.bak`, file lock, migration framework (a no-op v0→v1 sample), `config.toml` read/write, `snapshot.json` writer.
   *AC:* an aborted write leaves a loadable save. A corrupt save restores from `.bak` with a notice. Two concurrent processes don't corrupt the save.
-- [ ] **T06 Offline catch-up.** `catch_up(now)` with `offline_cap`, the tail factor and clock-skew handling (a clock that moves backwards is ignored and noted). Builds a "While you were away" summary.
+- [x] **T06 Offline catch-up.** `catch_up(now)` with `offline_cap`, the tail factor and clock-skew handling (a clock that moves backwards is ignored and noted). Builds a "While you were away" summary.
   *AC:* a 30-day catch-up gives the same result in one batch as in daily batches. The bench test stays under the §7 target. The summary is golden.
 - [ ] **T07 Renderer.** Unicode and ASCII sprite sets for every species and stage, color tiers + `NO_COLOR`, grid layout + compact list fallback, compact glyph.
   *AC:* goldens at 40×12, 80×24 and 120×40 for each sprite set and color tier. No line overflows the width.

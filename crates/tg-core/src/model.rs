@@ -121,6 +121,37 @@ impl Plant {
         }
         transitions
     }
+
+    /// Advances GP and stage transitions identically to [`Self::advance_gp`] without constructing
+    /// intermediate [`StageTransition`] vectors or unused PRNG instances on non-blooming ticks.
+    pub(crate) fn advance_gp_quiet(
+        &mut self,
+        garden_seed: u64,
+        tick_index: u64,
+        plot_index: usize,
+        delta_gp: u64,
+        thresholds: &[u64; 4],
+        tick_timestamp: Timestamp,
+    ) {
+        self.total_gp = self.total_gp.saturating_add(delta_gp);
+        self.stage_gp = self.stage_gp.saturating_add(delta_gp);
+
+        while let (Some(idx), Some(next_stage)) = (self.stage.transition_index(), self.stage.next())
+        {
+            let threshold = thresholds[idx];
+            if self.stage_gp < threshold {
+                break;
+            }
+            self.stage_gp -= threshold;
+            self.stage = next_stage;
+            if next_stage == Stage::Blooming && self.bloomed_at.is_none() {
+                let stream = (plot_index as u64).saturating_add(1);
+                let mut plot_rng = crate::rng::rng_for_stream(garden_seed, tick_index, stream);
+                self.bloomed_at = Some(tick_timestamp);
+                self.bloom_seed = Some(plot_rng.next_u64());
+            }
+        }
+    }
 }
 
 /// One cell in the garden grid, either empty or holding a [`Plant`].

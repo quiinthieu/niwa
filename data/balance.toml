@@ -22,6 +22,14 @@ default_season_multiplier = 1.0
 # Days without any active tick before plants pause in dormancy (tunable; PLAN §4.1 default = 7).
 dormant_after_days = 7
 
+[catch_up]
+# Hours of consecutive offline ticks that count at full base trickle before tail scaling (tunable; PLAN §4.1 default = 72).
+offline_cap_hours = 72
+# Multiplier applied to base_gp_per_tick after offline_cap_hours until dormancy (tunable; 0.0..=1.0, PLAN §4.1).
+offline_tail_factor = 0.5
+# Maximum ticks simulated per bounded catch-up chunk (tunable; 1_440 = 1 day per chunk, PLAN §4.1).
+chunk_ticks = 1_440
+
 [seasons]
 # Length of one season in days when season_mode = "garden" (tunable; PLAN §4.2).
 season_length_days = 7

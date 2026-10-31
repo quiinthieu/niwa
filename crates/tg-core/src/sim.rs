@@ -103,13 +103,13 @@ pub struct TickOutcome {
 /// Pure, deterministic garden state (PLAN §3.1 & §4.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Garden {
-    seed: u64,
-    plots: Vec<Plot>,
-    created_at: Timestamp,
-    last_tick_at: Timestamp,
-    tick_index: u64,
-    inactive_ticks: u64,
-    dormant: bool,
+    pub(crate) seed: u64,
+    pub(crate) plots: Vec<Plot>,
+    pub(crate) created_at: Timestamp,
+    pub(crate) last_tick_at: Timestamp,
+    pub(crate) tick_index: u64,
+    pub(crate) inactive_ticks: u64,
+    pub(crate) dormant: bool,
 }
 
 impl Garden {

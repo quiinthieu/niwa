@@ -1,0 +1,33 @@
+---
+source: crates/tg-core/tests/catch_up.rs
+expression: combined
+---
+=== sub_minute ===
+Welcome back
+- Less than a minute has passed; your garden is right where you left it.
+
+=== away_18h ===
+While you were away (18h)
+- Plot 1: Meadow Daisy grew from Seed to Sprout.
+- Plot 2: English Lavender grew from Seed to Sprout.
+- Plot 3: Dwarf Red Maple grew from Seed to Sprout.
+
+=== away_5d_tail ===
+While you were away (5d 1h)
+- Plot 1: Meadow Daisy bloomed (from Seed).
+- Plot 2: English Lavender grew from Seed to Mature.
+- Plot 3: Dwarf Red Maple grew from Seed to Young.
+- Season shifted from Spring to Summer.
+- After 3d away, growth eased into a gentle resting pace.
+
+=== away_30d_dormant ===
+While you were away (30d)
+- Plot 1: Meadow Daisy bloomed (from Seed).
+- Plot 2: English Lavender grew from Seed to Mature.
+- Plot 3: Dwarf Red Maple grew from Seed to Mature.
+- Season shifted from Spring to Summer.
+- After 7d without activity, your garden drifted into a cozy rest — nothing is lost.
+
+=== clock_skew ===
+While you were away: clock skew detected
+- System clock moved backwards by 5m; kept your garden safely at its latest moment.

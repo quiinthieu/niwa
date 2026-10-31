@@ -6,8 +6,10 @@ use std::fs;
 use std::path::Path;
 use support::TestEnv;
 use tg_core::balance::Balance;
+use tg_core::catch_up::{CatchUpEvent, CatchUpOptions};
 use tg_core::clock::{Clock, FakeClock, Timestamp};
 use tg_core::sim::{Garden, TickInput};
+use tg_core::species::SpeciesCatalog;
 use tg_store::atomic::FaultPoint;
 use tg_store::error::StoreError;
 use tg_store::migrate::{MigrationRunner, SaveMigration, CURRENT_SAVE_SCHEMA_VERSION};
@@ -309,4 +311,44 @@ fn migration_v0_to_v1_runs_step_by_step_and_matches_golden() {
         future_err,
         StoreError::UnsupportedFutureSchema { found: 42, .. }
     ));
+}
+
+#[test]
+fn record_catch_up_accumulates_clock_skew_and_dropped_event_diagnostics() {
+    let env = TestEnv::new();
+    let balance = Balance::load_default();
+    let catalog = SpeciesCatalog::load_embedded().unwrap();
+    let clock = FakeClock::from_unix_secs(1_780_000_000);
+    let store = GardenStore::new(env.paths().clone());
+
+    let mut garden = Garden::from_clock(88, &balance, &clock);
+    garden.plant_seed(0, "daisy").unwrap();
+    let mut save = GardenSave::from_garden(&garden);
+
+    // 1. Backwards clock skew increments `clock_skew_events`.
+    let skew_out = garden.catch_up(
+        clock.now().add_secs(-120),
+        CatchUpOptions::default(),
+        &balance,
+        &catalog,
+    );
+    save.record_catch_up(&garden, &skew_out);
+    assert_eq!(save.diagnostics.clock_skew_events, 1);
+
+    // 2. Forward catch-up with out-of-window events increments dropped event counters.
+    let now = clock.advance_ticks(10);
+    let events = [
+        CatchUpEvent::active_at(Timestamp::from_unix_secs(1_779_999_000)),
+        CatchUpEvent::active_at(now.add_secs(600)),
+    ];
+    let fwd_out =
+        garden.catch_up_with_events(now, &events, CatchUpOptions::default(), &balance, &catalog);
+    save.record_catch_up(&garden, &fwd_out);
+    store.save(&save).unwrap();
+
+    let reloaded = store.load().unwrap().unwrap().save;
+    assert_eq!(reloaded.diagnostics.clock_skew_events, 1);
+    assert_eq!(reloaded.diagnostics.dropped_pre_creation_events, 1);
+    assert_eq!(reloaded.diagnostics.dropped_future_events, 1);
+    assert_eq!(reloaded.tick_index, 10);
 }
