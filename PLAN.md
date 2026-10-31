@@ -198,7 +198,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* every `config.toml` key can be set from both the TUI and the menu bar app. Enabling a signal in the UI shows the same consent text as the CLI (shared strings file).
 
 ### M4 Polish & release
-- [ ] **T16 Perf & content pass.** `bench.sh` for every §7 target with a stored baseline, a seasonal ambience pass, almanac flavour text, an accessibility check (ASCII mode, no color-only cues).
+- [x] **T16 Perf & content pass.** `bench.sh` for every §7 target with a stored baseline, a seasonal ambience pass, almanac flavour text, an accessibility check (ASCII mode, no color-only cues).
   *AC:* every §7 target has a measured value in `docs/perf.md` (or a filed issue if it's missed). There are no color-only state indicators.
 - [ ] **T17 Packaging & Homebrew.** `release.yml`: macOS universal (`lipo` arm64 + x86_64) and Linux x86_64/arm64 tarballs with checksums. Signed and notarised `Niwa.app` DMG (secrets in Actions). Tap repo `quiinthieu/homebrew-tap` with formula `niwa` and cask `niwa-garden` (the cask `depends_on formula: "niwa"` *(verify syntax)*). Re-run the §1.3 name check first.
   *AC:* `brew install --build-from-source` and `brew audit --strict` pass in CI. A tag dry run produces every artifact. `spctl -a` accepts the app.
