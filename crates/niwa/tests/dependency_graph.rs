@@ -203,3 +203,40 @@ fn dependency_graph_matches_plan_spec() {
         "niwa-garden must depend on tg-core, tg-signals, tg-store, tg-render"
     );
 }
+
+#[test]
+fn toolchain_versions_stay_in_sync() {
+    let root = workspace_manifest_path()
+        .parent()
+        .expect("workspace root")
+        .to_path_buf();
+
+    let rust_toolchain = std::fs::read_to_string(root.join("rust-toolchain.toml"))
+        .expect("read rust-toolchain.toml");
+    let channel = rust_toolchain
+        .lines()
+        .find_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix("channel")
+                .map(|rest| rest.trim().trim_start_matches('=').trim().trim_matches('"'))
+        })
+        .expect("channel in rust-toolchain.toml");
+
+    let clippy_toml = std::fs::read_to_string(root.join("clippy.toml")).expect("read clippy.toml");
+    assert!(
+        clippy_toml.contains(&format!("msrv = \"{channel}\"")),
+        "clippy.toml msrv must match rust-toolchain.toml channel ({channel})"
+    );
+
+    let ci_yml =
+        std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read ci.yml");
+    assert!(
+        ci_yml.contains(&format!("toolchain: \"{channel}\"")),
+        ".github/workflows/ci.yml must explicitly pin toolchain: \"{channel}\" to match rust-toolchain.toml"
+    );
+    assert!(
+        ci_yml.contains("tool: cargo-deny"),
+        ".github/workflows/ci.yml must pass tool: cargo-deny to taiki-e/install-action"
+    );
+}
