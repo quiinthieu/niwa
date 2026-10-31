@@ -92,6 +92,12 @@ public final class SettingsViewModel {
         return consentCatalog.signal(signal).renderDisclosureText(signal: signal)
     }
 
+    /// Non-color-only validation error message carrying an explicit `"Error: "` prefix (`PLAN.md` §10 T16).
+    public var formattedErrorMessage: String? {
+        guard let raw = errorMessage, !raw.isEmpty else { return nil }
+        return raw.hasPrefix("Error:") ? raw : "Error: \(raw)"
+    }
+
     /// Loads all 17 `config.toml` keys strictly via `niwa config get <key>` (`PLAN.md` §6).
     public func reloadFromCLI() {
         guard cli.locateBinary() != nil else {

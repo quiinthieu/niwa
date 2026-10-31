@@ -65,11 +65,10 @@ pub fn draw_ui(frame: &mut Frame<'_>, app: &TuiApp) {
         } else {
             Style::default()
         };
+        let status_text =
+            sanitize_for_sprites(app.status_message(), app.session().config().sprites);
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                app.status_message().to_string(),
-                status_style,
-            ))),
+            Paragraph::new(Line::from(Span::styled(status_text, status_style))),
             stat,
         );
     }
@@ -179,6 +178,39 @@ fn split_main_areas(area: Rect) -> (Rect, Option<Rect>, Option<Rect>) {
     }
 }
 
+const ASCII_MODAL_BORDERS: ratatui::symbols::border::Set<'static> = ratatui::symbols::border::Set {
+    top_left: "+",
+    top_right: "+",
+    bottom_left: "+",
+    bottom_right: "+",
+    vertical_left: "|",
+    vertical_right: "|",
+    horizontal_top: "-",
+    horizontal_bottom: "-",
+};
+
+fn sanitize_for_sprites(text: &str, sprites: SpriteSet) -> String {
+    if sprites != SpriteSet::Ascii
+        || text
+            .bytes()
+            .all(|b| b == b'\n' || (0x20..=0x7E).contains(&b))
+    {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        match ch {
+            '\n' | ' '..='~' => out.push(ch),
+            '—' | '–' | '·' => out.push('-'),
+            '•' => out.push('*'),
+            '…' => out.push_str("..."),
+            '§' => out.push_str("sec."),
+            _ => out.push('?'),
+        }
+    }
+    out
+}
+
 fn rendered_line_to_ratatui(
     line: &RenderedLine,
     tier: ColorTier,
@@ -187,7 +219,16 @@ fn rendered_line_to_ratatui(
 ) -> Line<'static> {
     let selected_token = format!(" #{selected_num} ");
     let selected_replacement = format!(">#{selected_num} ");
-    let move_pair = move_num.map(|n| (format!(" #{n} "), format!("*#{n} ")));
+    let compact_selected_token = format!("#{selected_num} ");
+    let compact_selected_replacement = format!(">#{selected_num}");
+    let move_pair = move_num.map(|n| {
+        (
+            format!(" #{n} "),
+            format!("*#{n} "),
+            format!("#{n} "),
+            format!("*#{n}"),
+        )
+    });
 
     let mut spans = Vec::with_capacity(line.spans().len());
     for span in line.spans() {
@@ -196,9 +237,16 @@ fn rendered_line_to_ratatui(
         if text.contains(&selected_token) {
             text = text.replacen(&selected_token, &selected_replacement, 1);
             is_selected_header = true;
-        } else if let Some((ref mv_tok, ref mv_rep)) = move_pair {
+        } else if text.starts_with(&compact_selected_token) {
+            text = text.replacen(&compact_selected_token, &compact_selected_replacement, 1);
+            is_selected_header = true;
+        } else if let Some((ref mv_tok, ref mv_rep, ref mv_compact_tok, ref mv_compact_rep)) =
+            move_pair
+        {
             if text.contains(mv_tok) {
                 text = text.replacen(mv_tok, mv_rep, 1);
+            } else if text.starts_with(mv_compact_tok) {
+                text = text.replacen(mv_compact_tok, mv_compact_rep, 1);
             }
         }
 
@@ -256,14 +304,21 @@ const fn ansi16_to_ratatui(c: Ansi16Color) -> Color {
 
 fn build_inspector_line(app: &TuiApp) -> Line<'static> {
     let garden = app.session().garden();
+    let sprites = app.session().config().sprites;
+    let sep = match sprites {
+        SpriteSet::Unicode => "·",
+        SpriteSet::Ascii => "-",
+    };
     let total_plots = garden.plots().len();
     let idx = app.selected_plot();
     let plot_num = idx + 1;
     let total_seeds: u32 = app.session().save().inventory.values().copied().sum();
+    let current_season = app.session().current_season();
 
     let plot_desc = match garden.plots().get(idx).and_then(|p| p.plant()) {
         Some(plant) => {
-            let (name, rarity) = app.session().catalog().get(&plant.species_id).map_or_else(
+            let sp_opt = app.session().catalog().get(&plant.species_id);
+            let (name, rarity) = sp_opt.map_or_else(
                 || (plant.species_id.as_str(), "common"),
                 |sp| (sp.display_name.as_str(), sp.rarity.label()),
             );
@@ -274,9 +329,24 @@ fn build_inspector_line(app: &TuiApp) -> Line<'static> {
                 Stage::Mature => "Mature",
                 Stage::Blooming => "Blooming *",
             };
-            format!("{name} [{rarity}] · {stage_str}")
+            let season_wait = match (plant.stage, sp_opt) {
+                (Stage::Seed, Some(sp))
+                    if sp.seasonal_sprout_only && !sp.can_sprout_in(current_season) =>
+                {
+                    let sprout_seasons: Vec<&str> =
+                        sp.preferred_seasons.iter().map(|s| s.as_str()).collect();
+                    format!(" (awaits {})", sprout_seasons.join("/"))
+                }
+                _ => String::new(),
+            };
+            let rest_tag = if garden.is_dormant() {
+                " [Resting]"
+            } else {
+                ""
+            };
+            format!("{name} [{rarity}] {sep} {stage_str}{season_wait}{rest_tag}")
         }
-        None => "Empty — press [p] to plant".to_string(),
+        None => "Empty - press [p] to plant".to_string(),
     };
 
     let move_tag = app
@@ -287,7 +357,7 @@ fn build_inspector_line(app: &TuiApp) -> Line<'static> {
         "> Plot {plot_num}/{total_plots}: {plot_desc}{move_tag} | Pouch: {total_seeds} seeds"
     );
     Line::from(Span::styled(
-        text,
+        sanitize_for_sprites(&text, sprites),
         Style::default().add_modifier(Modifier::BOLD),
     ))
 }
@@ -295,7 +365,7 @@ fn build_inspector_line(app: &TuiApp) -> Line<'static> {
 fn modal_block(title: String, sprites: SpriteSet) -> Block<'static> {
     let borders = Block::default().borders(Borders::ALL).title(title);
     if sprites == SpriteSet::Ascii {
-        borders.border_type(ratatui::widgets::BorderType::Plain)
+        borders.border_set(ASCII_MODAL_BORDERS)
     } else {
         borders.border_type(ratatui::widgets::BorderType::Rounded)
     }
@@ -318,24 +388,27 @@ fn centered_rect(area: Rect, max_width: u16, max_height: u16) -> Rect {
 fn draw_away_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, summary: &AwaySummary) {
     let rect = centered_rect(area, 64, 14);
     frame.render_widget(Clear, rect);
+    let sprites = app.session().config().sprites;
+    let bullet_mark = match sprites {
+        SpriteSet::Unicode => "•",
+        SpriteSet::Ascii => "*",
+    };
 
     let mut lines = Vec::new();
     lines.push(Line::from(Span::styled(
-        summary.headline.clone(),
+        sanitize_for_sprites(&summary.headline, sprites),
         Style::default().add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(""));
     for bullet in &summary.lines {
-        lines.push(Line::from(format!("• {bullet}")));
+        let cleaned = sanitize_for_sprites(bullet, sprites);
+        lines.push(Line::from(format!("{bullet_mark} {cleaned}")));
     }
     lines.push(Line::from(""));
     lines.push(Line::from("Press [Enter] or [Esc] to tend your garden."));
 
     let widget = Paragraph::new(Text::from(lines))
-        .block(modal_block(
-            " While you were away ".to_string(),
-            app.session().config().sprites,
-        ))
+        .block(modal_block(" While you were away ".to_string(), sprites))
         .wrap(Wrap { trim: false });
     frame.render_widget(widget, rect);
 }
@@ -436,6 +509,12 @@ fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: u
     )));
     lines.push(Line::from(""));
 
+    let sprites = app.session().config().sprites;
+    let dash = match sprites {
+        SpriteSet::Unicode => "—",
+        SpriteSet::Ascii => "-",
+    };
+
     for (idx, sp) in catalog_species
         .iter()
         .enumerate()
@@ -449,13 +528,13 @@ fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: u
                 |ts| format!("bloomed {}", format_utc_ymd(ts)),
             );
             format!(
-                "{marker} {} [{}] — {bloom_str} (harvested {})",
+                "{marker} {} [{}] {dash} {bloom_str} (harvested {})",
                 sp.display_name,
                 sp.rarity.label(),
                 entry.harvest_count
             )
         } else {
-            format!("{marker} ??? [{}] — undiscovered", sp.rarity.label())
+            format!("{marker} ??? [{}] {dash} undiscovered", sp.rarity.label())
         };
         let style = if idx == clamped_cursor {
             Style::default().add_modifier(Modifier::BOLD)
@@ -515,7 +594,7 @@ fn draw_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, state: &
 
     let mut lines = Vec::new();
     lines.push(Line::from(format!(
-        "Settings ({}/{} — [Up/Down] select, [Left/Right/Enter] change, [Esc] close)",
+        "Settings ({}/{} - [Up/Down] select, [Left/Right/Enter] change, [Esc] close)",
         clamped_cursor + 1,
         total
     )));
@@ -555,13 +634,14 @@ fn draw_settings_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, state: &
     lines.push(Line::from(""));
     let selected_field = SettingsField::ALL[clamped_cursor];
     if let Some(ref err) = state.error_message {
+        let cleaned_err = sanitize_for_sprites(err, config.sprites);
         lines.push(Line::from(Span::styled(
-            format!("! {err} ([Enter] retry, [Ctrl-U] clear, [Esc] cancel)"),
+            format!("! {cleaned_err} ([Enter] retry, [Ctrl-U] clear, [Esc] cancel)"),
             Style::default().add_modifier(Modifier::BOLD),
         )));
     } else if state.edit_buffer.is_some() {
         lines.push(Line::from(
-            "Editing value — [Enter] save via `niwa config set`, [Ctrl-U] clear, [Esc] cancel",
+            "Editing value - [Enter] save via `niwa config set`, [Ctrl-U] clear, [Esc] cancel",
         ));
     } else {
         lines.push(Line::from(selected_field.hint()));

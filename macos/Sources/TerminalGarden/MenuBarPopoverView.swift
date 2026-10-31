@@ -28,8 +28,8 @@ public struct MenuBarPopoverView: View {
                 emptySnapshotSection
             }
 
-            if let errorText = viewModel.snapshotError {
-                Text(errorText)
+            if let errorText = viewModel.formattedSnapshotError {
+                Label(errorText, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.red)
                     .accessibilityIdentifier("snapshot-error-text")
@@ -71,6 +71,15 @@ public struct MenuBarPopoverView: View {
                             .padding(.vertical, 2)
                             .background(.quaternary, in: Capsule())
                             .accessibilityIdentifier("dormant-badge")
+                    }
+
+                    if viewModel.signalsPaused {
+                        Text("Signals Paused")
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.quaternary, in: Capsule())
+                            .accessibilityIdentifier("signals-paused-badge")
                     }
                 }
 

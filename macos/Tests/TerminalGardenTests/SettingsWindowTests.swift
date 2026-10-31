@@ -112,8 +112,10 @@ final class SettingsWindowTests: XCTestCase {
         vm.dormantAfterDaysDraft = "0"
         vm.commitDormantAfterDaysDraft()
         let zeroDormantErr = vm.errorMessage
+        let formattedDormantErr = vm.formattedErrorMessage
         let preservedDormant = vm.dormantAfterDays
         XCTAssertNotNil(zeroDormantErr)
+        XCTAssertEqual(formattedDormantErr?.hasPrefix("Error: "), true)
         XCTAssertEqual(preservedDormant, 7)
 
         vm.dormantAfterDaysDraft = "14"

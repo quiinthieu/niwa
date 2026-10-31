@@ -107,7 +107,7 @@ impl SettingsField {
             Self::SeasonMode => "[Left/Right/Enter] Toggle real calendar vs garden season cycle",
             Self::Hemisphere => "[Left/Right/Enter] Toggle northern vs southern calendar seasons",
             Self::DormantAfterDays => {
-                "[Left/Right] -1/+1 day · [Enter] Type positive days before resting"
+                "[Left/Right] -1/+1 day | [Enter] Type positive days before resting"
             }
             Self::PromptStyle => "[Left/Right/Enter] Cycle glyph, emoji, or none for `niwa prompt`",
             Self::MenubarShowTitle => {
@@ -120,25 +120,25 @@ impl SettingsField {
                 "[Enter/Space] Enable (shows local storage consent) or disable active time"
             }
             Self::SignalActivityConsentedAt => {
-                "[Enter] Edit Unix timestamp or 'none' · [x/Del] Clear consent timestamp"
+                "[Enter] Edit Unix timestamp or 'none' | [x/Del] Clear consent timestamp"
             }
             Self::SignalGitEnabled => {
                 "[Enter/Space] Enable (shows local storage consent) or disable git commits"
             }
             Self::SignalGitConsentedAt => {
-                "[Enter] Edit Unix timestamp or 'none' · [x/Del] Clear consent timestamp"
+                "[Enter] Edit Unix timestamp or 'none' | [x/Del] Clear consent timestamp"
             }
             Self::SignalShellEnabled => {
                 "[Enter/Space] Enable (shows local storage consent) or disable shell commands"
             }
             Self::SignalShellConsentedAt => {
-                "[Enter] Edit Unix timestamp or 'none' · [x/Del] Clear consent timestamp"
+                "[Enter] Edit Unix timestamp or 'none' | [x/Del] Clear consent timestamp"
             }
             Self::GitRepos => {
-                "[Enter] Edit comma-separated local repo paths · [x/Del] Clear ('none')"
+                "[Enter] Edit comma-separated local repo paths | [x/Del] Clear ('none')"
             }
             Self::GitAuthorEmail => {
-                "[Enter] Edit git author email (gardener@example.com) · [x/Del] Clear"
+                "[Enter] Edit git author email (gardener@example.com) | [x/Del] Clear"
             }
         }
     }

@@ -784,10 +784,19 @@ fn render_medium_cell(
         let p_style = plant_style(hint, plant.stage, options.season, dormant);
         let name = species.map_or(plant.species_id.as_str(), |sp| sp.display_name.as_str());
         let badge = short_stage_tag(plant.stage, box_chars.bloom_mark);
+        let right = if dormant {
+            if cell_w >= 18 {
+                format!(" {badge} [Rest] ")
+            } else {
+                " [Rest] ".to_string()
+            }
+        } else {
+            format!(" {badge} ")
+        };
 
         lines.push(build_lr_line(
             &format!(" #{plot_num} {name}"),
-            &format!(" {badge} "),
+            &right,
             cell_w,
             if dormant {
                 palette.muted
