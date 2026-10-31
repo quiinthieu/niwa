@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): frostbell.
+species_id = "frostbell"
+seed = [
+    '       ',
+    '       ',
+    '  .*.  ',
+]
+sprout = [
+    '       ',
+    '   i   ',
+    '  .+.  ',
+]
+young = [
+    '  /\   ',
+    '  *|   ',
+    '  -+-  ',
+]
+mature = [
+    ' /T+T\ ',
+    ' *| *| ',
+    '  -+-  ',
+]
+blooming = [
+    ' /T*T\ ',
+    ' *|:|* ',
+    '  -+-  ',
+]

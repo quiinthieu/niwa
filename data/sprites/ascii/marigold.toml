@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): marigold.
+species_id = "marigold"
+seed = [
+    '       ',
+    '       ',
+    '  ...  ',
+]
+sprout = [
+    '       ',
+    '   i   ',
+    '  -+-  ',
+]
+young = [
+    '   i   ',
+    '  -|-  ',
+    '  -+-  ',
+]
+mature = [
+    '  (o)  ',
+    '  -+-  ',
+    '  -+-  ',
+]
+blooming = [
+    ' :#O#: ',
+    '  -+-  ',
+    '  -+-  ',
+]

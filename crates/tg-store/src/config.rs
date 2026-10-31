@@ -15,23 +15,7 @@ pub const MIN_FPS: u8 = 1;
 pub const MAX_FPS: u8 = 4;
 pub const DEFAULT_DORMANT_AFTER_DAYS: u32 = 7;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SpriteSet {
-    #[default]
-    Unicode,
-    Ascii,
-}
-
-impl SpriteSet {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Unicode => "unicode",
-            Self::Ascii => "ascii",
-        }
-    }
-}
+pub use tg_core::species::SpriteSet;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

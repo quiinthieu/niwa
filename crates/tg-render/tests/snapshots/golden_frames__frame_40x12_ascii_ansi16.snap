@@ -1,0 +1,16 @@
+---
+source: crates/tg-render/tests/golden_frames.rs
+expression: escape_ansi_for_snapshot(&raw)
+---
+\e[1;95m * Niwa \e[0m\e[35m- Spring \e[0m\e[92m- 7/9 planted - 2 bloom\e[0m
+\e[32m+------------+------------+------------+\e[0m
+\e[32m|\e[0m\e[2;90m#1 \e[0m\e[1;95m#T#\e[0m\e[1;95m  Blm*\e[0m\e[32m|\e[0m\e[2;90m#2 \e[0m\e[93m-|-\e[0m\e[93m  Matr\e[0m\e[32m|\e[0m\e[2;90m#3 \e[0m\e[92m/| \e[0m\e[92m   Yng\e[0m\e[32m|\e[0m
+\e[32m|\e[0m\e[1;95mSakura Bonsa\e[0m\e[32m|\e[0m\e[93mMeadow Daisy\e[0m\e[32m|\e[0m\e[92mLily of the \e[0m\e[32m|\e[0m
+\e[32m+------------+------------+------------+\e[0m
+\e[32m|\e[0m\e[2;90m#4 \e[0m\e[92m , \e[0m\e[92m  Sprt\e[0m\e[32m|\e[0m\e[2;90m#5  .    -- \e[0m\e[32m|\e[0m\e[2;90m#6 \e[0m\e[33m . \e[0m\e[33m  Seed\e[0m\e[32m|\e[0m
+\e[32m|\e[0m\e[92mWhite Clover\e[0m\e[32m|\e[0m\e[2;90m(empty)     \e[0m\e[32m|\e[0m\e[33mEvening Prim\e[0m\e[32m|\e[0m
+\e[32m+------------+------------+------------+\e[0m
+\e[32m|\e[0m\e[2;90m#7 \e[0m\e[1;91m*|*\e[0m\e[1;91m  Blm*\e[0m\e[32m|\e[0m\e[2;90m#8 \e[0m\e[92m_m_\e[0m\e[92m  Matr\e[0m\e[32m|\e[0m\e[2;90m#9  .    -- \e[0m\e[32m|\e[0m
+\e[32m|\e[0m\e[1;91mDwarf Red Ma\e[0m\e[32m|\e[0m\e[92mCushion Moss\e[0m\e[32m|\e[0m\e[2;90m(empty)     \e[0m\e[32m|\e[0m
+\e[32m+------------+------------+------------+\e[0m
+\e[1;95m Glyph * \e[0m\e[2;90m- State: Growing quietly\e[0m

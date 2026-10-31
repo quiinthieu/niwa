@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): camellia.
+species_id = "camellia"
+seed = [
+    '       ',
+    '       ',
+    '  .o.  ',
+]
+sprout = [
+    '       ',
+    '   i   ',
+    '  -+-  ',
+]
+young = [
+    '   i   ',
+    '  (+)  ',
+    '  -+-  ',
+]
+mature = [
+    '  (o)  ',
+    ' (-|-) ',
+    '  -+-  ',
+]
+blooming = [
+    ' {:@:} ',
+    ' (-|-) ',
+    '  -+-  ',
+]

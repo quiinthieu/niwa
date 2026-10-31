@@ -1,0 +1,27 @@
+# Multi-line 7-bit ASCII stage sprites (PLAN §4.3, §8 & T07): snowdrop.
+species_id = "snowdrop"
+seed = [
+    '       ',
+    '       ',
+    '  ...  ',
+]
+sprout = [
+    '       ',
+    '  /-   ',
+    '  +--  ',
+]
+young = [
+    '  /\   ',
+    '  |i   ',
+    '  +--  ',
+]
+mature = [
+    '  /-\  ',
+    '  | o  ',
+    ' -+--  ',
+]
+blooming = [
+    '  /-\  ',
+    '  | *o ',
+    ' -+--  ',
+]

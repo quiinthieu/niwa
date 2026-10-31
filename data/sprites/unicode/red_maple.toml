@@ -1,0 +1,27 @@
+# Multi-line Unicode stage sprites (PLAN §4.3, §8 & T07): red_maple.
+species_id = "red_maple"
+seed = [
+    "       ",
+    "       ",
+    "  ·•·  ",
+]
+sprout = [
+    "       ",
+    "   ╷   ",
+    "  ─┴─  ",
+]
+young = [
+    "  ╭┬╮  ",
+    "   │   ",
+    "  ─┴─  ",
+]
+mature = [
+    " ╭─┬─╮ ",
+    " ╰─┼─╯ ",
+    "  ─┴─  ",
+]
+blooming = [
+    " ▓▒◈▒▓ ",
+    " ╰┬┼┬╯ ",
+    "  ─┴─  ",
+]

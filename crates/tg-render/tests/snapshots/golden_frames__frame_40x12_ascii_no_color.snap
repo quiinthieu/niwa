@@ -1,0 +1,16 @@
+---
+source: crates/tg-render/tests/golden_frames.rs
+expression: escape_ansi_for_snapshot(&raw)
+---
+ * Niwa - Spring - 7/9 planted - 2 bloom
++------------+------------+------------+
+|#1 #T#  Blm*|#2 -|-  Matr|#3 /|    Yng|
+|Sakura Bonsa|Meadow Daisy|Lily of the |
++------------+------------+------------+
+|#4  ,   Sprt|#5  .    -- |#6  .   Seed|
+|White Clover|(empty)     |Evening Prim|
++------------+------------+------------+
+|#7 *|*  Blm*|#8 _m_  Matr|#9  .    -- |
+|Dwarf Red Ma|Cushion Moss|(empty)     |
++------------+------------+------------+
+ Glyph * - State: Growing quietly

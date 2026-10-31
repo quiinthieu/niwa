@@ -1,0 +1,28 @@
+---
+source: crates/tg-render/tests/golden_frames.rs
+expression: escape_ansi_for_snapshot(&raw)
+---
+ ◈ Niwa · Spring · 7/9 planted · 2 blooming                                     
+┌──────────────────────────┬─────────────────────────┬─────────────────────────┐
+│ #1 Sakura Bonsai     [M] │ #2 Meadow Daisy     [C] │ #3 Lily of the Vall [R] │
+│          ░▓◈▓░           │            ◎            │           ╭─╮           │
+│          ·╭┼╯·           │           ├│┤           │           │ ∘           │
+│           ─┴─            │           ─┴─           │           ┴──           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [████░░] │ Young          [███░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #4 White Clover      [C] │ #5 (empty plot)         │ #6 Evening Primrose [U] │
+│                          │                         │                         │
+│           ╭╷╮            │          · · ·          │                         │
+│           ─┴─            │          ─────          │           ·•·           │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Sprout          [███░░░] │     ready to plant      │ Seed           [██░░░░] │
+├──────────────────────────┼─────────────────────────┼─────────────────────────┤
+│ #7 Dwarf Red Maple   [R] │ #8 Cushion Moss     [C] │ #9 (empty plot)         │
+│          ▓▒◈▒▓           │           ░░░           │                         │
+│          ╰┬┼┬╯           │          ▄███▄          │          · · ·          │
+│           ─┴─            │          █████          │          ─────          │
+│         ╰─────╯          │         ╰─────╯         │         ╰─────╯         │
+│ Blooming ◈      [██████] │ Mature         [████░░] │     ready to plant      │
+└──────────────────────────┴─────────────────────────┴─────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)

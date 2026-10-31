@@ -1,0 +1,44 @@
+---
+source: crates/tg-render/tests/golden_frames.rs
+expression: escape_ansi_for_snapshot(&raw)
+---
+ ◈ Niwa · Spring · 7/9 planted · 2 blooming                                                                             
+                                          · ∘ · ░ spring petals drifting · ∘ ·                                          
+┌───────────────────────────────────────┬───────────────────────────────────────┬──────────────────────────────────────┐
+│ #1 · Sakura Bonsai             mythic │ #2 · Meadow Daisy              common │ #3 · Lily of the Valley         rare │
+│   · In full bloom ◈ ready to harvest  │   · Growing steadily                  │   · Growing steadily                 │
+│               ·   ∘   ·               │                                       │                                      │
+│                 ░▓◈▓░                 │                   ◎                   │                 ╭─╮                  │
+│                 ·╭┼╯·                 │                  ├│┤                  │                 │ ∘                  │
+│                  ─┴─                  │                  ─┴─                  │                 ┴──                  │
+│               ╭───────╮               │               ╭───────╮               │              ╭───────╮               │
+│               ╰───────╯               │               ╰───────╯               │              ╰───────╯               │
+│ Stage: Blooming ◈                100% │ Stage: Mature                     70% │ Stage: Young                     50% │
+│ Progress [██████████████████]         │ Progress [████████████░░░░░░]         │ Progress [█████████░░░░░░░░░]        │
+│ Season: spring                        │ Season: summer, spring                │ Season: spring                       │
+├───────────────────────────────────────┼───────────────────────────────────────┼──────────────────────────────────────┤
+│ #4 · White Clover              common │ #5 · Empty Plot                    -- │ #6 · Evening Primrose       uncommon │
+│   · Growing steadily                  │   · Soil rested & ready               │   · Growing steadily                 │
+│                                       │                                       │                                      │
+│                                       │                                       │                                      │
+│                  ╭╷╮                  │                 · · ·                 │                                      │
+│                  ─┴─                  │                 ─────                 │                 ·•·                  │
+│               ╭───────╮               │               ╭───────╮               │              ╭───────╮               │
+│               ╰───────╯               │               ╰───────╯               │              ╰───────╯               │
+│ Stage: Sprout                     60% │ Stage: (unplanted)                    │ Stage: Seed                      40% │
+│ Progress [██████████░░░░░░░░]         │ Progress [░░░░░░░░░░░░░░░░░░]         │ Progress [███████░░░░░░░░░░░]        │
+│ Season: spring, summer                │ Plant a seed whenever you like        │ Season: spring                       │
+├───────────────────────────────────────┼───────────────────────────────────────┼──────────────────────────────────────┤
+│ #7 · Dwarf Red Maple             rare │ #8 · Cushion Moss              common │ #9 · Empty Plot                   -- │
+│   · In full bloom ◈ ready to harvest  │   · Growing steadily                  │   · Soil rested & ready              │
+│               ·   ∘   ·               │                                       │                                      │
+│                 ▓▒◈▒▓                 │                  ░░░                  │                                      │
+│                 ╰┬┼┬╯                 │                 ▄███▄                 │                · · ·                 │
+│                  ─┴─                  │                 █████                 │                ─────                 │
+│               ╭───────╮               │               ╭───────╮               │              ╭───────╮               │
+│               ╰───────╯               │               ╰───────╯               │              ╰───────╯               │
+│ Stage: Blooming ◈                100% │ Stage: Mature                     70% │ Stage: (unplanted)                   │
+│ Progress [██████████████████]         │ Progress [████████████░░░░░░]         │ Progress [░░░░░░░░░░░░░░░░░░]        │
+│ Season: autumn                        │ Season: winter, autumn                │ Plant a seed whenever you like       │
+└───────────────────────────────────────┴───────────────────────────────────────┴──────────────────────────────────────┘
+ Glyph ◈ · State: Growing quietly (plants rest safely when away)
