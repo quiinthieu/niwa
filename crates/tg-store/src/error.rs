@@ -74,4 +74,7 @@ pub enum StoreError {
         value: String,
         reason: String,
     },
+
+    #[error("malformed Niwa shell hook markers in '{path}': {reason}")]
+    MalformedShellHookBlock { path: PathBuf, reason: String },
 }
