@@ -24,5 +24,9 @@ struct NiwaMenuBarApp: App {
             }
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(viewModel: viewModel.settingsViewModel)
+        }
     }
 }

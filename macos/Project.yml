@@ -29,6 +29,8 @@ targets:
     sources:
       - Sources/TerminalGarden
       - Sources/App
+      - path: ../data/consent.toml
+        buildPhase: resources
     settings:
       base:
         PRODUCT_NAME: "$(NIWA_DISPLAY_NAME)"
@@ -52,6 +54,8 @@ targets:
     sources:
       - Sources/TerminalGarden
       - Tests/TerminalGardenTests
+      - path: ../data/consent.toml
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: "$(NIWA_BUNDLE_ID).tests"

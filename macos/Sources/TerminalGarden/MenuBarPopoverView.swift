@@ -214,6 +214,15 @@ public struct MenuBarPopoverView: View {
 
                 Spacer(minLength: 8)
 
+                Button("Settings…") {
+                    viewModel.openSettingsWindow()
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .keyboardShortcut(",", modifiers: .command)
+                .accessibilityIdentifier("open-settings-button")
+
                 Button("Quit") {
                     onQuit()
                 }

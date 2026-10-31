@@ -234,39 +234,84 @@ final class NiwaCLIWrapperTests: XCTestCase {
         XCTAssertTrue(logged.contains("ARGS=config set signals.paused false"))
     }
 
-    static func installStubBinary(at stubURL: URL, logFile: URL) throws {
+    static func installStubBinary(
+        at stubURL: URL,
+        logFile: URL,
+        defaultActivityEnabled: Bool = true
+    ) throws {
+        let defaultActivity = defaultActivityEnabled ? "true" : "false"
+        let defaultActivityConsent = defaultActivityEnabled ? "1752000000" : "none"
         let script = """
         #!/bin/sh
         set -eu
-        STATE_PAUSE="${NIWA_HOME}/paused.state"
         printf 'NIWA_HOME=%s ARGS=%s\\n' "${NIWA_HOME:-}" "$*" >> "\(logFile.path)"
 
         if [ "${1:-}" = "config" ] && [ "${2:-}" = "get" ]; then
-          case "${3:-}" in
-            signals.paused)
-              if [ -f "$STATE_PAUSE" ]; then /bin/cat "$STATE_PAUSE"; else echo "false"; fi
-              ;;
-            signals.activity.enabled)
-              echo "true"
-              ;;
-            signals.git.enabled|signals.shell.enabled)
-              echo "false"
-              ;;
-            menubar.show_title)
-              echo "true"
-              ;;
+          KEY="${3:-}"
+          KV_FILE="${NIWA_HOME}/kv_${KEY}"
+          if [ -f "$KV_FILE" ]; then
+            /bin/cat "$KV_FILE"
+            exit 0
+          fi
+          case "$KEY" in
+            sprites) echo "unicode" ;;
+            color) echo "auto" ;;
+            fps) echo "4" ;;
+            season_mode) echo "calendar" ;;
+            hemisphere) echo "north" ;;
+            dormant_after_days) echo "7" ;;
+            signals.paused) echo "false" ;;
+            signals.activity.enabled) echo "\(defaultActivity)" ;;
+            signals.activity.consented_at) echo "\(defaultActivityConsent)" ;;
+            signals.git.enabled) echo "false" ;;
+            signals.git.consented_at) echo "none" ;;
+            signals.shell.enabled) echo "false" ;;
+            signals.shell.consented_at) echo "none" ;;
+            git.repos) echo "" ;;
+            git.author_email) echo "" ;;
+            prompt.style) echo "glyph" ;;
+            menubar.show_title) echo "true" ;;
             *)
-              echo ""
+              echo "invalid config key: $KEY" >&2
+              exit 1
               ;;
           esac
           exit 0
         fi
 
         if [ "${1:-}" = "config" ] && [ "${2:-}" = "set" ]; then
-          if [ "${3:-}" = "signals.paused" ]; then
-            printf '%s\\n' "${4:-false}" > "$STATE_PAUSE"
+          KEY="${3:-}"
+          VAL="${4:-}"
+          if [ "$KEY" = "dormant_after_days" ] && [ "$VAL" = "0" ]; then
+            echo "dormant_after_days must be at least 1" >&2
+            exit 1
           fi
-          printf '%s = %s\\n' "${3:-}" "${4:-}"
+          if [ "$KEY" = "git.author_email" ] && [ -n "$VAL" ] && [ "$VAL" != "none" ]; then
+            case "$VAL" in
+              *@*) ;;
+              *)
+                echo "author email must contain '@'" >&2
+                exit 1
+                ;;
+            esac
+          fi
+          if ( [ "$KEY" = "git.repos" ] || [ "$KEY" = "git.author_email" ] ) && [ "$VAL" = "none" ]; then
+            printf '\\n' > "${NIWA_HOME}/kv_${KEY}"
+          else
+            printf '%s\\n' "$VAL" > "${NIWA_HOME}/kv_${KEY}"
+          fi
+          case "$KEY" in
+            signals.activity.enabled)
+              if [ "$VAL" = "true" ]; then printf '1752000777\\n' > "${NIWA_HOME}/kv_signals.activity.consented_at"; fi
+              ;;
+            signals.git.enabled)
+              if [ "$VAL" = "true" ]; then printf '1752000778\\n' > "${NIWA_HOME}/kv_signals.git.consented_at"; fi
+              ;;
+            signals.shell.enabled)
+              if [ "$VAL" = "true" ]; then printf '1752000779\\n' > "${NIWA_HOME}/kv_signals.shell.consented_at"; fi
+              ;;
+          esac
+          printf '%s = %s\\n' "$KEY" "$VAL"
           exit 0
         fi
 
