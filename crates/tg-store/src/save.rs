@@ -158,6 +158,12 @@ pub struct LoadOutcome {
     pub migrated_from: Option<u32>,
 }
 
+/// Summary of files deleted by [`GardenStore::reset`] (`niwa reset [--all]`; PLAN §5 & §10 T08).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ResetOutcome {
+    pub removed_files: Vec<PathBuf>,
+}
+
 /// Persistent store managing `garden.json`, `garden.json.bak`, and `garden.lock`.
 #[derive(Clone, Debug)]
 pub struct GardenStore {
@@ -291,6 +297,47 @@ impl GardenStore {
             Some(&validate_existing),
             fault,
         )
+    }
+
+    /// Removes persisted garden state (`garden.json`, `garden.json.bak`, `snapshot.json`) under
+    /// an exclusive lock, and when `include_all` is `true` (`niwa reset --all`), also removes
+    /// `events.jsonl`, `config.toml`, and `garden.lock` (PLAN §0.6, §5 & §10 T08).
+    pub fn reset(&self, include_all: bool) -> Result<ResetOutcome, StoreError> {
+        let mut removed_files = Vec::new();
+        {
+            let _guard = self.lock()?;
+            let mut targets = vec![
+                self.paths.garden_file(),
+                self.paths.garden_backup_file(),
+                self.paths.snapshot_file(),
+            ];
+            if include_all {
+                targets.push(self.paths.events_file());
+                targets.push(self.paths.config_file());
+            }
+            for path in targets {
+                remove_file_if_present(&path, &mut removed_files)?;
+            }
+        }
+        if include_all {
+            remove_file_if_present(&self.paths.lock_file(), &mut removed_files)?;
+        }
+        Ok(ResetOutcome { removed_files })
+    }
+}
+
+fn remove_file_if_present(path: &Path, removed: &mut Vec<PathBuf>) -> Result<(), StoreError> {
+    match fs::remove_file(path) {
+        Ok(()) => {
+            removed.push(path.to_path_buf());
+            Ok(())
+        }
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(StoreError::Io {
+            path: path.to_path_buf(),
+            action: "remove state file during reset",
+            source,
+        }),
     }
 }
 

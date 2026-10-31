@@ -48,4 +48,4 @@ mythic_weight = 30
 in_season_weight_multiplier = 3
 off_season_weight_multiplier = 1
 # Number of seeds awarded per blooming harvest (tunable).
-seeds_per_harvest = 1
+seeds_per_harvest = 2
