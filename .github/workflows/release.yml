@@ -1,0 +1,424 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and verify all artifacts without publishing a GitHub Release or updating homebrew-tap"
+        required: false
+        default: true
+        type: boolean
+      version_override:
+        description: "Optional version override without leading v (defaults to Cargo.toml version)"
+        required: false
+        default: ""
+        type: string
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/release.yml"
+      - "scripts/package-macos-dmg.sh"
+      - "scripts/render-homebrew.sh"
+      - "packaging/homebrew/**"
+      - "macos/**"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  resolve-meta:
+    name: Resolve Release Metadata
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      is_dry_run: ${{ steps.meta.outputs.is_dry_run }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compute version and dry-run mode
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          INPUT_VERSION: ${{ inputs.version_override }}
+        run: |
+          CARGO_VERSION="$(python3 -c '
+          import pathlib, re
+          text = pathlib.Path("Cargo.toml").read_text(encoding="utf-8")
+          m = re.search(r"^version\s*=\s*\"([^\"]+)\"", text, flags=re.MULTILINE)
+          assert m, "version missing in Cargo.toml"
+          print(m.group(1))
+          ')"
+
+          if [ "$EVENT_NAME" = "push" ] && [ "$REF_TYPE" = "tag" ]; then
+            VERSION="${REF_NAME#v}"
+            IS_DRY_RUN="false"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="${INPUT_VERSION:-$CARGO_VERSION}"
+            VERSION="${VERSION#v}"
+            if [ "$INPUT_DRY_RUN" = "false" ]; then
+              IS_DRY_RUN="false"
+            else
+              IS_DRY_RUN="true"
+            fi
+          else
+            VERSION="$CARGO_VERSION"
+            IS_DRY_RUN="true"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "is_dry_run=$IS_DRY_RUN" >> "$GITHUB_OUTPUT"
+          echo "Resolved release metadata: version=$VERSION tag=v$VERSION is_dry_run=$IS_DRY_RUN"
+
+  macos-artifacts:
+    name: macOS Universal Tarball & DMG
+    needs: resolve-meta
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (arm64 + x86_64)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.91.1"
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Ensure xcodegen is installed
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: command -v xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      - name: Configure optional Apple Developer ID keychain
+        id: signing
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY_SECRET: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE_P12_BASE64" ] && [ -n "$APPLE_CERTIFICATE_PASSWORD" ]; then
+            KEYCHAIN_PATH="$RUNNER_TEMP/niwa-signing.keychain-db"
+            KEYCHAIN_PASS="$(uuidgen)"
+            P12_PATH="$RUNNER_TEMP/build_certificate.p12"
+
+            printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$P12_PATH"
+            security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN_PATH"
+            security import "$P12_PATH" \
+              -P "$APPLE_CERTIFICATE_PASSWORD" \
+              -A \
+              -t cert \
+              -f pkcs12 \
+              -k "$KEYCHAIN_PATH"
+            security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+            security set-key-partition-list \
+              -S apple-tool:,apple:,codesign: \
+              -s \
+              -k "$KEYCHAIN_PASS" \
+              "$KEYCHAIN_PATH"
+
+            if [ -n "$APPLE_SIGNING_IDENTITY_SECRET" ]; then
+              IDENTITY="$APPLE_SIGNING_IDENTITY_SECRET"
+            else
+              IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -n 1)"
+            fi
+
+            if [ -z "$IDENTITY" ]; then
+              echo "ERROR: Certificate imported, but no Developer ID Application identity was found." >&2
+              exit 1
+            fi
+            echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+            if [ -n "$APPLE_API_KEY_P8_BASE64" ]; then
+              API_KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+              printf '%s' "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$API_KEY_PATH"
+              echo "APPLE_API_KEY_PATH=$API_KEY_PATH" >> "$GITHUB_ENV"
+            fi
+            echo "Apple Developer ID signing enabled."
+          else
+            echo "No Apple Developer ID secrets configured; using zero-cost ($0) ad-hoc signing mode."
+          fi
+
+      - name: Build universal macOS CLI tarball (lipo arm64 + x86_64)
+        env:
+          VERSION: ${{ needs.resolve-meta.outputs.version }}
+        run: |
+          cargo build --release --locked --package niwa-garden --target aarch64-apple-darwin
+          cargo build --release --locked --package niwa-garden --target x86_64-apple-darwin
+
+          STAGE_DIR="dist/niwa-v${VERSION}-universal-apple-darwin"
+          mkdir -p "$STAGE_DIR"
+
+          lipo -create \
+            target/aarch64-apple-darwin/release/niwa \
+            target/x86_64-apple-darwin/release/niwa \
+            -output "$STAGE_DIR/niwa"
+          chmod +x "$STAGE_DIR/niwa"
+
+          ARCHS="$(lipo -archs "$STAGE_DIR/niwa")"
+          echo "Universal CLI architectures: $ARCHS"
+          case " $ARCHS " in
+            *" arm64 "*) ;;
+            *) echo "ERROR: Missing arm64 slice in universal niwa binary" >&2; exit 1 ;;
+          esac
+          case " $ARCHS " in
+            *" x86_64 "*) ;;
+            *) echo "ERROR: Missing x86_64 slice in universal niwa binary" >&2; exit 1 ;;
+          esac
+
+          if [ -n "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$STAGE_DIR/niwa"
+          else
+            codesign --force --sign - "$STAGE_DIR/niwa"
+          fi
+          codesign --verify --strict --verbose=2 "$STAGE_DIR/niwa"
+          "$STAGE_DIR/niwa" --version
+
+          cp LICENSE-MIT LICENSE-APACHE "$STAGE_DIR/"
+          cp packaging/launchd/io.github.quiinthieu.niwa.daemon.plist.in "$STAGE_DIR/"
+
+          tar -C dist -czf "dist/niwa-v${VERSION}-universal-apple-darwin.tar.gz" "niwa-v${VERSION}-universal-apple-darwin"
+
+      - name: Build, sign and mount-verify Niwa.app DMG
+        env:
+          VERSION: ${{ needs.resolve-meta.outputs.version }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ./scripts/package-macos-dmg.sh \
+            --version "$VERSION" \
+            --output "dist/Niwa-v${VERSION}-macos.dmg"
+
+      - name: Destroy ephemeral signing keychain and credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/build_certificate.p12" "$RUNNER_TEMP/AuthKey.p8"
+          if [ -f "$RUNNER_TEMP/niwa-signing.keychain-db" ]; then
+            security delete-keychain "$RUNNER_TEMP/niwa-signing.keychain-db" || rm -f "$RUNNER_TEMP/niwa-signing.keychain-db"
+          fi
+
+      - name: Upload macOS release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release-artifacts
+          if-no-files-found: error
+          path: |
+            dist/niwa-v*-universal-apple-darwin.tar.gz
+            dist/Niwa-v*-macos.dmg
+
+  linux-artifacts:
+    name: Linux Tarball (${{ matrix.target }})
+    needs: resolve-meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            cross: false
+          - target: aarch64-unknown-linux-gnu
+            cross: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 cross-compilation toolchain and QEMU
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross file
+          sudo apt-get install -y qemu-user || true
+
+      - name: Install Rust toolchain (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.91.1"
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo registry and build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build and package Linux tarball (${{ matrix.target }})
+        env:
+          VERSION: ${{ needs.resolve-meta.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: |
+          cargo build --release --locked --package niwa-garden --target "$TARGET"
+
+          BIN_PATH="target/${TARGET}/release/niwa"
+          if [ "$TARGET" = "aarch64-unknown-linux-gnu" ]; then
+            FILE_INFO="$(file "$BIN_PATH")"
+            echo "Built ARM64 binary: $FILE_INFO"
+            printf '%s\n' "$FILE_INFO" | grep -E "ELF 64-bit.*ARM aarch64"
+            if command -v qemu-aarch64 >/dev/null 2>&1; then
+              qemu-aarch64 -L /usr/aarch64-linux-gnu "$BIN_PATH" --version
+            fi
+          else
+            "$BIN_PATH" --version
+          fi
+
+          STAGE_DIR="dist/niwa-v${VERSION}-${TARGET}"
+          mkdir -p "$STAGE_DIR"
+          cp "$BIN_PATH" "$STAGE_DIR/niwa"
+          chmod +x "$STAGE_DIR/niwa"
+          cp LICENSE-MIT LICENSE-APACHE "$STAGE_DIR/"
+          cp packaging/systemd/niwa.service.in "$STAGE_DIR/"
+
+          tar -C dist -czf "dist/niwa-v${VERSION}-${TARGET}.tar.gz" "niwa-v${VERSION}-${TARGET}"
+
+      - name: Upload Linux tarball (${{ matrix.target }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.target }}-artifact
+          if-no-files-found: error
+          path: dist/niwa-v*-${{ matrix.target }}.tar.gz
+
+  bundle-and-publish:
+    name: Checksums, Homebrew Manifests & Publish
+    needs:
+      - resolve-meta
+      - macos-artifacts
+      - linux-artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download built release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: incoming-artifacts
+          merge-multiple: true
+
+      - name: Verify artifact set, generate SHA256SUMS.txt and render Homebrew tap files
+        env:
+          VERSION: ${{ needs.resolve-meta.outputs.version }}
+          TAG: ${{ needs.resolve-meta.outputs.tag }}
+          IS_DRY_RUN: ${{ needs.resolve-meta.outputs.is_dry_run }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p release-bundle/assets release-bundle/homebrew
+          cp incoming-artifacts/* release-bundle/assets/
+
+          for expected in \
+            "niwa-v${VERSION}-universal-apple-darwin.tar.gz" \
+            "niwa-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            "niwa-v${VERSION}-aarch64-unknown-linux-gnu.tar.gz" \
+            "Niwa-v${VERSION}-macos.dmg"
+          do
+            if [ ! -s "release-bundle/assets/$expected" ]; then
+              echo "ERROR: Missing or empty release artifact '$expected'" >&2
+              exit 1
+            fi
+          done
+
+          (
+            cd release-bundle/assets
+            sha256sum \
+              "niwa-v${VERSION}-universal-apple-darwin.tar.gz" \
+              "niwa-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+              "niwa-v${VERSION}-aarch64-unknown-linux-gnu.tar.gz" \
+              "Niwa-v${VERSION}-macos.dmg" \
+              > SHA256SUMS.txt
+            sha256sum -c SHA256SUMS.txt
+          )
+
+          DMG_SHA256="$(sha256sum "release-bundle/assets/Niwa-v${VERSION}-macos.dmg" | awk '{print $1}')"
+
+          if [ "$IS_DRY_RUN" = "false" ] && [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            curl -fsSL "https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz" -o /tmp/source-tag.tar.gz
+            SOURCE_SHA256="$(sha256sum /tmp/source-tag.tar.gz | awk '{print $1}')"
+          else
+            git archive --format=tar.gz --prefix="niwa-${VERSION}/" HEAD -o /tmp/source-dryrun.tar.gz
+            SOURCE_SHA256="$(sha256sum /tmp/source-dryrun.tar.gz | awk '{print $1}')"
+          fi
+
+          bash ./scripts/render-homebrew.sh \
+            --output-dir release-bundle/homebrew \
+            --version "$VERSION" \
+            --formula-sha256 "$SOURCE_SHA256" \
+            --cask-sha256 "$DMG_SHA256"
+
+          {
+            echo "## Release Bundle (${TAG}, dry_run=${IS_DRY_RUN})"
+            echo ""
+            echo '```text'
+            cat release-bundle/assets/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verified release bundle (assets + SHA256SUMS + rendered Homebrew tap)
+        uses: actions/upload-artifact@v4
+        with:
+          name: niwa-release-bundle-v${{ needs.resolve-meta.outputs.version }}
+          if-no-files-found: error
+          path: release-bundle/**
+
+      - name: Publish GitHub Release (tag releases only)
+        if: needs.resolve-meta.outputs.is_dry_run == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve-meta.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release-bundle/assets/* --clobber
+          else
+            gh release create "$TAG" release-bundle/assets/* \
+              --title "Niwa ${TAG}" \
+              --generate-notes
+          fi
+
+      - name: Sync quiinthieu/homebrew-tap (when HOMEBREW_TAP_TOKEN is configured)
+        if: needs.resolve-meta.outputs.is_dry_run == 'false'
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.resolve-meta.outputs.version }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "NOTICE: HOMEBREW_TAP_TOKEN is not configured; upload-artifact contains rendered Formula/ and Casks/ ready for quiinthieu/homebrew-tap."
+            exit 0
+          fi
+
+          TAP_WORK="$(mktemp -d)"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/quiinthieu/homebrew-tap.git" "$TAP_WORK"
+          cp -R release-bundle/homebrew/Formula release-bundle/homebrew/Casks "$TAP_WORK/"
+          git -C "$TAP_WORK" config user.name "github-actions[bot]"
+          git -C "$TAP_WORK" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$TAP_WORK" add Formula Casks
+          if ! git -C "$TAP_WORK" diff --cached --quiet; then
+            git -C "$TAP_WORK" commit -m "chore(release): niwa v${VERSION}"
+            git -C "$TAP_WORK" push origin main
+          fi
+          rm -rf "$TAP_WORK"
