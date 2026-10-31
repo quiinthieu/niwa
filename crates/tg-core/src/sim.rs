@@ -136,6 +136,28 @@ impl Garden {
         Self::from_balance(seed, balance, clock.now())
     }
 
+    /// Reconstructs a [`Garden`] from persisted state fields without performing I/O.
+    #[must_use]
+    pub fn from_parts(
+        seed: u64,
+        plots: Vec<Plot>,
+        created_at: Timestamp,
+        last_tick_at: Timestamp,
+        tick_index: u64,
+        inactive_ticks: u64,
+        dormant: bool,
+    ) -> Self {
+        Self {
+            seed,
+            plots,
+            created_at,
+            last_tick_at,
+            tick_index,
+            inactive_ticks,
+            dormant,
+        }
+    }
+
     #[must_use]
     pub const fn seed(&self) -> u64 {
         self.seed

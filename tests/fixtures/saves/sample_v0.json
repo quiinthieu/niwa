@@ -1,0 +1,23 @@
+{
+  "schema_version": 0,
+  "seed": 108,
+  "plots": [
+    {
+      "plant": {
+        "species_id": "sun_moss",
+        "stage": "sprout",
+        "stage_gp": 15,
+        "total_gp": 75,
+        "planted_at": 1700000000,
+        "planted_tick": 0,
+        "bloomed_at": null,
+        "bloom_seed": null
+      }
+    },
+    {
+      "plant": null
+    }
+  ],
+  "last_tick_at": 1700000600,
+  "tick_index": 10
+}

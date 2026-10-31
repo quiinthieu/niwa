@@ -1,0 +1,15 @@
+---
+source: crates/tg-store/tests/paths_config_snapshot.rs
+expression: raw
+---
+{
+  "schema_version": 1,
+  "glyph": "✿",
+  "summary": "2 blooming · 3 planted (autumn)",
+  "season": "autumn",
+  "compact_frame": "[✿][🌿][🌱][·]",
+  "updated_at": 1730001200,
+  "dormant": false,
+  "planted_count": 3,
+  "blooming_count": 2
+}
