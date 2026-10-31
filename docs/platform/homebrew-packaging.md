@@ -60,9 +60,9 @@ Before publishing `quiinthieu/homebrew-tap` and `.github/workflows/release.yml`,
 ## 3. Release Artifacts, Universal `lipo` Binaries & Code Signing (`release.yml`)
 
 - **Artifacts built by [`.github/workflows/release.yml`](../../.github/workflows/release.yml):**
-  1. `niwa-v<VERSION>-universal-apple-darwin.tar.gz` — macOS universal Mach-O binary (`lipo -create` combining `aarch64-apple-darwin` and `x86_64-apple-darwin`, verified via `lipo -archs` -> `x86_64 arm64`), `LICENSE-MIT`, `LICENSE-APACHE`, and `packaging/launchd/io.github.quiinthieu.niwa.daemon.plist`.
-  2. `niwa-v<VERSION>-x86_64-unknown-linux-gnu.tar.gz` — Linux `x86_64` binary, licenses, and `packaging/systemd/niwa.service`.
-  3. `niwa-v<VERSION>-aarch64-unknown-linux-gnu.tar.gz` — Linux `arm64` binary (cross-compiled with `gcc-aarch64-linux-gnu` and smoke-tested under `qemu-aarch64-static`), licenses, and `packaging/systemd/niwa.service`.
+  1. `niwa-v<VERSION>-universal-apple-darwin.tar.gz` — macOS universal Mach-O binary (`lipo -create` combining `aarch64-apple-darwin` and `x86_64-apple-darwin`, verified via `lipo -archs` -> `x86_64 arm64`), `LICENSE-MIT`, `LICENSE-APACHE`, and `packaging/launchd/io.github.quiinthieu.niwa.daemon.plist.in`.
+  2. `niwa-v<VERSION>-x86_64-unknown-linux-gnu.tar.gz` — Linux `x86_64` binary, licenses, and `packaging/systemd/niwa.service.in`.
+  3. `niwa-v<VERSION>-aarch64-unknown-linux-gnu.tar.gz` — Linux `arm64` binary (cross-compiled with `gcc-aarch64-linux-gnu`, verified as an `ARM aarch64` ELF binary, and smoke-tested under `qemu-aarch64`), licenses, and `packaging/systemd/niwa.service.in`.
   4. `Niwa-v<VERSION>-macos.dmg` — Compressed `UDZO` disk image (`hdiutil create -format UDZO`) containing universal (`arm64` + `x86_64`) `Niwa.app` and `/Applications` symlink.
   5. `SHA256SUMS.txt` — SHA-256 checksums covering all four release archives, verified with `shasum -a 256 -c SHA256SUMS.txt`.
 - **Signing, Notarization & Zero-Cost Ad-Hoc Fallback:**
