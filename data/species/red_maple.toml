@@ -7,7 +7,7 @@ growth_multiplier = 0.95
 preferred_seasons = ["autumn"]
 seasonal_sprout_only = false
 color_hint = "crimson"
-almanac_flavour = "Star-cut scarlet leaves balanced on slender branches in a stoneware dish."
+almanac_flavour = "Star-cut scarlet leaves balance on slender branches rooted in a shallow stoneware dish. Every autumn breeze sets the miniature canopy shimmering like warm embers."
 
 [sprites.unicode]
 seed = " · "

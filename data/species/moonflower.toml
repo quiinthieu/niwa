@@ -7,7 +7,7 @@ growth_multiplier = 0.9
 preferred_seasons = ["autumn"]
 seasonal_sprout_only = true
 color_hint = "violet"
-almanac_flavour = "Luminous twilight trumpets that spiral open only when crisp autumn nights return."
+almanac_flavour = "Luminous twilight trumpets spiral open only when crisp autumn nights return. Silvery vines trace the rim of the pot, glowing softly beside a dimmed terminal."
 
 [sprites.unicode]
 seed = " · "

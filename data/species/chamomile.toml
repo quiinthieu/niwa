@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["autumn", "summer"]
 seasonal_sprout_only = false
 color_hint = "gold"
-almanac_flavour = "Feathery apple-scented stems ready for a warm mug beside the keyboard."
+almanac_flavour = "Feathery apple-scented stems sway beside a warm mug near the keyboard. Even a quiet afternoon breeze sends its tiny golden domes nodding in unison."
 
 [sprites.unicode]
 seed = " · "

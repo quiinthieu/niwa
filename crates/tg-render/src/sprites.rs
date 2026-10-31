@@ -468,18 +468,186 @@ pub const fn wide_pot(set: SpriteSet) -> (&'static str, &'static str) {
     }
 }
 
-/// Returns the seasonal ambient sky motif (`petals`, `fireflies`, `leaves`, `snow`; PLAN §4.2).
+/// Returns the seasonal ambient sky motif (`petals`, `fireflies`, `leaves`, `snow`; PLAN §4.2)
+/// at resting phase `0`.
 #[must_use]
 pub const fn seasonal_ambient_banner(set: SpriteSet, season: Season) -> &'static str {
-    match (set, season) {
-        (SpriteSet::Unicode, Season::Spring) => "· ∘ · ░ spring petals drifting · ∘ ·",
-        (SpriteSet::Unicode, Season::Summer) => "· • · ◈ summer fireflies glowing · • ·",
-        (SpriteSet::Unicode, Season::Autumn) => "· ◇ · ▒ autumn leaves rustling · ◇ ·",
-        (SpriteSet::Unicode, Season::Winter) => "· ° · ◌ winter snow settling · ° ·",
-        (SpriteSet::Ascii, Season::Spring) => ". o . ~ spring petals drifting . o .",
-        (SpriteSet::Ascii, Season::Summer) => ". * . + summer fireflies glowing . * .",
-        (SpriteSet::Ascii, Season::Autumn) => ". ~ . / autumn leaves rustling . ~ .",
-        (SpriteSet::Ascii, Season::Winter) => ". * . . winter snow settling . * .",
+    seasonal_ambient_banner_frame(set, season, 0)
+}
+
+/// Returns the seasonal ambient sky banner at animation `phase` (`0..4`, wrapping cleanly).
+#[must_use]
+pub const fn seasonal_ambient_banner_frame(
+    set: SpriteSet,
+    season: Season,
+    phase: u8,
+) -> &'static str {
+    match (set, season, phase % 4) {
+        (SpriteSet::Unicode, Season::Spring, 0) => "· ∘ · ░ spring petals drifting · ∘ ·",
+        (SpriteSet::Unicode, Season::Spring, 1) => "∘ · ░ · spring petals drifting ∘ · ∘",
+        (SpriteSet::Unicode, Season::Spring, 2) => "· ░ · ∘ spring petals drifting · ░ ·",
+        (SpriteSet::Unicode, Season::Spring, _) => "░ · ∘ · spring petals drifting ░ · ∘",
+        (SpriteSet::Unicode, Season::Summer, 0) => "· • · ◈ summer fireflies glowing · • ·",
+        (SpriteSet::Unicode, Season::Summer, 1) => "• · ◈ · summer fireflies glowing • · •",
+        (SpriteSet::Unicode, Season::Summer, 2) => "· ◈ · • summer fireflies glowing · ◈ ·",
+        (SpriteSet::Unicode, Season::Summer, _) => "◈ · • · summer fireflies glowing ◈ · •",
+        (SpriteSet::Unicode, Season::Autumn, 0) => "· ◇ · ▒ autumn leaves rustling · ◇ ·",
+        (SpriteSet::Unicode, Season::Autumn, 1) => "◇ · ▒ · autumn leaves rustling ◇ · ◇",
+        (SpriteSet::Unicode, Season::Autumn, 2) => "· ▒ · ◇ autumn leaves rustling · ▒ ·",
+        (SpriteSet::Unicode, Season::Autumn, _) => "▒ · ◇ · autumn leaves rustling ▒ · ◇",
+        (SpriteSet::Unicode, Season::Winter, 0) => "· ° · ◌ winter snow settling · ° ·",
+        (SpriteSet::Unicode, Season::Winter, 1) => "° · ◌ · winter snow settling ° · °",
+        (SpriteSet::Unicode, Season::Winter, 2) => "· ◌ · ° winter snow settling · ◌ ·",
+        (SpriteSet::Unicode, Season::Winter, _) => "◌ · ° · winter snow settling ◌ · °",
+        (SpriteSet::Ascii, Season::Spring, 0) => ". o . ~ spring petals drifting . o .",
+        (SpriteSet::Ascii, Season::Spring, 1) => "o . ~ . spring petals drifting o . o",
+        (SpriteSet::Ascii, Season::Spring, 2) => ". ~ . o spring petals drifting . ~ .",
+        (SpriteSet::Ascii, Season::Spring, _) => "~ . o . spring petals drifting ~ . o",
+        (SpriteSet::Ascii, Season::Summer, 0) => ". * . + summer fireflies glowing . * .",
+        (SpriteSet::Ascii, Season::Summer, 1) => "* . + . summer fireflies glowing * . *",
+        (SpriteSet::Ascii, Season::Summer, 2) => ". + . * summer fireflies glowing . + .",
+        (SpriteSet::Ascii, Season::Summer, _) => "+ . * . summer fireflies glowing + . *",
+        (SpriteSet::Ascii, Season::Autumn, 0) => ". ~ . / autumn leaves rustling . ~ .",
+        (SpriteSet::Ascii, Season::Autumn, 1) => "~ . / . autumn leaves rustling ~ . ~",
+        (SpriteSet::Ascii, Season::Autumn, 2) => ". / . ~ autumn leaves rustling . / .",
+        (SpriteSet::Ascii, Season::Autumn, _) => "/ . ~ . autumn leaves rustling / . ~",
+        (SpriteSet::Ascii, Season::Winter, 0) => ". * . . winter snow settling . * .",
+        (SpriteSet::Ascii, Season::Winter, 1) => "* . . * winter snow settling * . *",
+        (SpriteSet::Ascii, Season::Winter, 2) => ". . * . winter snow settling . . *",
+        (SpriteSet::Ascii, Season::Winter, _) => "* . * . winter snow settling * . .",
+    }
+}
+
+/// Concise right-aligned seasonal ambient motif displayed in wide grid headers (`width >= 68`).
+#[must_use]
+pub const fn seasonal_header_tag(set: SpriteSet, season: Season, phase: u8) -> &'static str {
+    match (set, season, phase % 4) {
+        (SpriteSet::Unicode, Season::Spring, 0) => " · ∘ spring petals · ",
+        (SpriteSet::Unicode, Season::Spring, 1) => " ∘ · spring petals ∘ ",
+        (SpriteSet::Unicode, Season::Spring, 2) => " · ░ spring petals · ",
+        (SpriteSet::Unicode, Season::Spring, _) => " ░ · spring petals ∘ ",
+        (SpriteSet::Unicode, Season::Summer, 0) => " · • summer fireflies · ",
+        (SpriteSet::Unicode, Season::Summer, 1) => " • · summer fireflies • ",
+        (SpriteSet::Unicode, Season::Summer, 2) => " · ◈ summer fireflies · ",
+        (SpriteSet::Unicode, Season::Summer, _) => " ◈ · summer fireflies • ",
+        (SpriteSet::Unicode, Season::Autumn, 0) => " · ◇ autumn leaves · ",
+        (SpriteSet::Unicode, Season::Autumn, 1) => " ◇ · autumn leaves ◇ ",
+        (SpriteSet::Unicode, Season::Autumn, 2) => " · ▒ autumn leaves · ",
+        (SpriteSet::Unicode, Season::Autumn, _) => " ▒ · autumn leaves ◇ ",
+        (SpriteSet::Unicode, Season::Winter, 0) => " · ° winter snow · ",
+        (SpriteSet::Unicode, Season::Winter, 1) => " ° · winter snow ° ",
+        (SpriteSet::Unicode, Season::Winter, 2) => " · ◌ winter snow · ",
+        (SpriteSet::Unicode, Season::Winter, _) => " ◌ · winter snow ° ",
+        (SpriteSet::Ascii, Season::Spring, 0) => " . o spring petals . ",
+        (SpriteSet::Ascii, Season::Spring, 1) => " o . spring petals o ",
+        (SpriteSet::Ascii, Season::Spring, 2) => " . ~ spring petals . ",
+        (SpriteSet::Ascii, Season::Spring, _) => " ~ . spring petals o ",
+        (SpriteSet::Ascii, Season::Summer, 0) => " . * summer fireflies . ",
+        (SpriteSet::Ascii, Season::Summer, 1) => " * . summer fireflies * ",
+        (SpriteSet::Ascii, Season::Summer, 2) => " . + summer fireflies . ",
+        (SpriteSet::Ascii, Season::Summer, _) => " + . summer fireflies * ",
+        (SpriteSet::Ascii, Season::Autumn, 0) => " . ~ autumn leaves . ",
+        (SpriteSet::Ascii, Season::Autumn, 1) => " ~ . autumn leaves ~ ",
+        (SpriteSet::Ascii, Season::Autumn, 2) => " . / autumn leaves . ",
+        (SpriteSet::Ascii, Season::Autumn, _) => " / . autumn leaves ~ ",
+        (SpriteSet::Ascii, Season::Winter, 0) => " . * winter snow . ",
+        (SpriteSet::Ascii, Season::Winter, 1) => " * . winter snow * ",
+        (SpriteSet::Ascii, Season::Winter, 2) => " . o winter snow . ",
+        (SpriteSet::Ascii, Season::Winter, _) => " o . winter snow * ",
+    }
+}
+
+/// Returns `(left_wing, right_wing)` (`3` display columns each) flanking the top row of a standard
+/// plot sprite with a single staggered seasonal mote (`petals`, `fireflies`, `leaves`, `snow`).
+#[must_use]
+pub const fn seasonal_cell_motes(
+    set: SpriteSet,
+    season: Season,
+    plot_index: usize,
+    phase: u8,
+) -> (&'static str, &'static str) {
+    let (primary, secondary) = match (set, season) {
+        (SpriteSet::Unicode, Season::Spring) => (" ∘ ", " · "),
+        (SpriteSet::Unicode, Season::Summer) => (" • ", " · "),
+        (SpriteSet::Unicode, Season::Autumn) => (" ◇ ", " · "),
+        (SpriteSet::Unicode, Season::Winter) => (" ° ", " ◌ "),
+        (SpriteSet::Ascii, Season::Spring) => (" o ", " . "),
+        (SpriteSet::Ascii, Season::Summer) => (" * ", " . "),
+        (SpriteSet::Ascii, Season::Autumn) => (" ~ ", " / "),
+        (SpriteSet::Ascii, Season::Winter) => (" * ", " . "),
+    };
+    match (plot_index + (phase as usize)) % 4 {
+        0 => (primary, "   "),
+        1 => ("   ", secondary),
+        2 => ("   ", primary),
+        _ => (secondary, "   "),
+    }
+}
+
+/// Returns the `9`-column seasonal canopy sky sprite rendered above spacious cells (`120×40`).
+#[must_use]
+pub const fn seasonal_canopy_aura(
+    set: SpriteSet,
+    season: Season,
+    blooming: bool,
+    plot_index: usize,
+    phase: u8,
+) -> &'static str {
+    let step = (plot_index + (phase as usize)) % 4;
+    if blooming {
+        return match (set, season, step % 2) {
+            (SpriteSet::Unicode, Season::Spring, 0) => "· ∘ ░ ∘ ·",
+            (SpriteSet::Unicode, Season::Spring, _) => "∘ · ░ · ∘",
+            (SpriteSet::Unicode, Season::Summer, 0) => "· • ◈ • ·",
+            (SpriteSet::Unicode, Season::Summer, _) => "• · ◈ · •",
+            (SpriteSet::Unicode, Season::Autumn, 0) => "· ◇ ▒ ◇ ·",
+            (SpriteSet::Unicode, Season::Autumn, _) => "◇ · ▒ · ◇",
+            (SpriteSet::Unicode, Season::Winter, 0) => "° · ◌ · °",
+            (SpriteSet::Unicode, Season::Winter, _) => "· ° ◌ ° ·",
+            (SpriteSet::Ascii, Season::Spring, 0) => ". o ~ o .",
+            (SpriteSet::Ascii, Season::Spring, _) => "o . ~ . o",
+            (SpriteSet::Ascii, Season::Summer, 0) => ". * + * .",
+            (SpriteSet::Ascii, Season::Summer, _) => "* . + . *",
+            (SpriteSet::Ascii, Season::Autumn, 0) => ". ~ / ~ .",
+            (SpriteSet::Ascii, Season::Autumn, _) => "~ . / . ~",
+            (SpriteSet::Ascii, Season::Winter, 0) => "* . o . *",
+            (SpriteSet::Ascii, Season::Winter, _) => ". * o * .",
+        };
+    }
+
+    match (set, season, step) {
+        (SpriteSet::Unicode, Season::Spring, 0) => " ∘       ",
+        (SpriteSet::Unicode, Season::Spring, 1) => "    ·    ",
+        (SpriteSet::Unicode, Season::Spring, 2) => "       ∘ ",
+        (SpriteSet::Unicode, Season::Spring, _) => "  ·   ∘  ",
+        (SpriteSet::Unicode, Season::Summer, 0) => " •       ",
+        (SpriteSet::Unicode, Season::Summer, 1) => "    ·    ",
+        (SpriteSet::Unicode, Season::Summer, 2) => "       • ",
+        (SpriteSet::Unicode, Season::Summer, _) => "  ·   •  ",
+        (SpriteSet::Unicode, Season::Autumn, 0) => " ◇       ",
+        (SpriteSet::Unicode, Season::Autumn, 1) => "    ·    ",
+        (SpriteSet::Unicode, Season::Autumn, 2) => "       ◇ ",
+        (SpriteSet::Unicode, Season::Autumn, _) => "  ·   ◇  ",
+        (SpriteSet::Unicode, Season::Winter, 0) => " °       ",
+        (SpriteSet::Unicode, Season::Winter, 1) => "    ◌    ",
+        (SpriteSet::Unicode, Season::Winter, 2) => "       ° ",
+        (SpriteSet::Unicode, Season::Winter, _) => "  ·   °  ",
+        (SpriteSet::Ascii, Season::Spring, 0) => " o       ",
+        (SpriteSet::Ascii, Season::Spring, 1) => "    .    ",
+        (SpriteSet::Ascii, Season::Spring, 2) => "       o ",
+        (SpriteSet::Ascii, Season::Spring, _) => "  .   o  ",
+        (SpriteSet::Ascii, Season::Summer, 0) => " *       ",
+        (SpriteSet::Ascii, Season::Summer, 1) => "    .    ",
+        (SpriteSet::Ascii, Season::Summer, 2) => "       * ",
+        (SpriteSet::Ascii, Season::Summer, _) => "  .   *  ",
+        (SpriteSet::Ascii, Season::Autumn, 0) => " ~       ",
+        (SpriteSet::Ascii, Season::Autumn, 1) => "    /    ",
+        (SpriteSet::Ascii, Season::Autumn, 2) => "       ~ ",
+        (SpriteSet::Ascii, Season::Autumn, _) => "  /   ~  ",
+        (SpriteSet::Ascii, Season::Winter, 0) => " *       ",
+        (SpriteSet::Ascii, Season::Winter, 1) => "    .    ",
+        (SpriteSet::Ascii, Season::Winter, 2) => "       * ",
+        (SpriteSet::Ascii, Season::Winter, _) => "  .   *  ",
     }
 }
 

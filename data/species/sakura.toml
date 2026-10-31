@@ -7,7 +7,7 @@ growth_multiplier = 0.9
 preferred_seasons = ["spring"]
 seasonal_sprout_only = true
 color_hint = "pink"
-almanac_flavour = "A miniature twisted trunk crowned with blush petals that drift across quiet spring mornings."
+almanac_flavour = "A miniature weathered trunk lifts clouds of blush petals across quiet spring mornings. Stray blossoms drift onto neighboring pots and settle there like pink snow."
 
 [sprites.unicode]
 seed = " · "

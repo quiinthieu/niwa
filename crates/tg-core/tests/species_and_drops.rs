@@ -297,3 +297,58 @@ fn drop_table_sampling_over_fixed_seed_matches_golden_and_respects_rarity_and_se
     assert!(tier_counts[3] > 0);
     assert!(primrose_count > snowdrop_count);
 }
+
+#[test]
+fn almanac_flavour_entries_are_rich_unique_ascii_clean_and_free_of_odds_or_guilt() {
+    let catalog = SpeciesCatalog::load_default();
+    let mut seen_flavours = std::collections::BTreeSet::new();
+
+    for sp in catalog.iter() {
+        let text = sp.almanac_flavour.trim();
+        assert!(
+            text.len() >= 90,
+            "species '{}' almanac_flavour should be a rich multi-clause botanical note (>= 90 chars), got {} chars: {:?}",
+            sp.id,
+            text.len(),
+            text
+        );
+        assert!(
+            text.ends_with('.'),
+            "species '{}' almanac_flavour must end with a sentence period: {:?}",
+            sp.id,
+            text
+        );
+        assert!(
+            text.bytes().all(|b| (0x20..=0x7E).contains(&b)),
+            "species '{}' almanac_flavour must be 7-bit printable ASCII so Unicode and ASCII modes both render cleanly: {:?}",
+            sp.id,
+            text
+        );
+        assert!(
+            !text.contains('%'),
+            "species '{}' almanac_flavour must never show percentages or drop odds (PLAN §4.2): {:?}",
+            sp.id,
+            text
+        );
+        let lower = text.to_ascii_lowercase();
+        for forbidden in ["streak", "penalty", "wilt", "die", "dying"] {
+            assert!(
+                !lower.contains(forbidden),
+                "species '{}' almanac_flavour contains forbidden token '{forbidden}': {:?}",
+                sp.id,
+                text
+            );
+        }
+        assert!(
+            !text.contains("Milk-white"),
+            "species '{}' almanac_flavour contains mid-sentence capitalized 'Milk-white': {:?}",
+            sp.id,
+            text
+        );
+        assert!(
+            seen_flavours.insert(text.to_string()),
+            "duplicate almanac_flavour text across species: {:?}",
+            text
+        );
+    }
+}

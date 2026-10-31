@@ -78,6 +78,7 @@ pub struct TuiApp {
     session: GardenSession,
     scheduler: FrameScheduler,
     color_tier: ColorTier,
+    ambient_phase: u8,
     selected_plot: usize,
     move_source: Option<usize>,
     overlay: Option<Overlay>,
@@ -107,6 +108,7 @@ impl TuiApp {
             session,
             scheduler,
             color_tier,
+            ambient_phase: 0,
             selected_plot: 0,
             move_source: None,
             overlay: away.map(Overlay::AwaySummary),
@@ -128,6 +130,11 @@ impl TuiApp {
     #[must_use]
     pub const fn color_tier(&self) -> ColorTier {
         self.color_tier
+    }
+
+    #[must_use]
+    pub const fn ambient_phase(&self) -> u8 {
+        self.ambient_phase
     }
 
     #[must_use]
@@ -278,6 +285,7 @@ impl TuiApp {
         if self.scheduler.should_draw(mono_now) {
             self.render(terminal)?;
             self.scheduler.mark_drawn(mono_now);
+            self.ambient_phase = (self.ambient_phase + 1) % 4;
             return Ok(true);
         }
         Ok(false)

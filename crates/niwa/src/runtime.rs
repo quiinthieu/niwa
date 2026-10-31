@@ -15,7 +15,7 @@ use tg_core::season::{resolve_season, Season};
 use tg_core::sim::Garden;
 use tg_core::species::{Rarity, SpeciesCatalog, SpriteSet};
 use tg_render::{
-    compact_glyph, detect_color_tier, render_compact_frame, render_garden, ColorEnv,
+    compact_glyph, detect_color_tier, render_compact_frame, render_garden_with_phase, ColorEnv,
     ColorPreference, ColorTier, RenderOptions, RenderedFrame, SpriteBank, Viewport,
 };
 use tg_signals::evaluator::evaluate_work_events;
@@ -857,7 +857,7 @@ impl GardenSession {
         Ok(())
     }
 
-    /// Renders a single garden frame for `niwa peek` or the TUI canvas.
+    /// Renders a single garden frame for `niwa peek` or the TUI canvas at resting phase `0`.
     #[must_use]
     pub fn render_frame(
         &self,
@@ -865,17 +865,30 @@ impl GardenSession {
         sprites_override: Option<SpriteSet>,
         color_tier: ColorTier,
     ) -> RenderedFrame {
+        self.render_frame_with_phase(viewport, sprites_override, color_tier, 0)
+    }
+
+    /// Renders a single garden frame with seasonal ambient particle `phase` (`0..4`; PLAN §4.2 & §10 T16).
+    #[must_use]
+    pub fn render_frame_with_phase(
+        &self,
+        viewport: Viewport,
+        sprites_override: Option<SpriteSet>,
+        color_tier: ColorTier,
+        phase: u8,
+    ) -> RenderedFrame {
         let options = RenderOptions {
             sprites: sprites_override.unwrap_or(self.config.sprites),
             color: color_tier,
             season: self.current_season(),
         };
-        render_garden(
+        render_garden_with_phase(
             &self.garden,
             &self.catalog,
             &self.sprites,
             viewport,
             options,
+            phase,
         )
     }
 

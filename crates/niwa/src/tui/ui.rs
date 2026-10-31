@@ -38,10 +38,11 @@ pub fn draw_ui(frame: &mut Frame<'_>, app: &TuiApp) {
     let (canvas_area, inspector_area, status_area) = split_main_areas(area);
 
     if canvas_area.height > 0 {
-        let rendered = app.session().render_frame(
+        let rendered = app.session().render_frame_with_phase(
             Viewport::new(canvas_area.width, canvas_area.height),
             None,
             app.color_tier(),
+            app.ambient_phase(),
         );
         let selected_num = app.selected_plot() + 1;
         let move_num = app.move_source().map(|idx| idx + 1);
@@ -411,7 +412,7 @@ fn draw_compost_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, plot_inde
 }
 
 fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: usize) {
-    let rect = centered_rect(area, 72, 20);
+    let rect = centered_rect(area, 76, 22);
     frame.render_widget(Clear, rect);
 
     let catalog_species: Vec<&Species> = app.session().catalog().iter().collect();
@@ -420,7 +421,7 @@ fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: u
     let total_count = catalog_species.len();
 
     let inner_height = usize::from(rect.height.saturating_sub(2));
-    let list_budget = inner_height.saturating_sub(6).max(3);
+    let list_budget = inner_height.saturating_sub(8).max(3);
     let clamped_cursor = cursor.min(total_count.saturating_sub(1));
     let start_idx = if clamped_cursor >= list_budget {
         clamped_cursor + 1 - list_budget
@@ -472,11 +473,13 @@ fn draw_almanac_modal(frame: &mut Frame<'_>, area: Rect, app: &TuiApp, cursor: u
                 .iter()
                 .map(|s| s.as_str())
                 .collect();
-            lines.push(Line::from(format!(
-                "Seasons: {} — {}",
-                seasons.join(", "),
-                selected_sp.almanac_flavour
-            )));
+            let season_line = if selected_sp.seasonal_sprout_only {
+                format!("Sprouts in: {} only", seasons.join(", "))
+            } else {
+                format!("Thrives in: {} (sprouts year-round)", seasons.join(", "))
+            };
+            lines.push(Line::from(season_line));
+            lines.push(Line::from(selected_sp.almanac_flavour.clone()));
         } else {
             lines.push(Line::from(
                 "Harvest blooming plants to discover new seasonal seeds.",

@@ -7,7 +7,7 @@ growth_multiplier = 1.0
 preferred_seasons = ["winter"]
 seasonal_sprout_only = false
 color_hint = "frost"
-almanac_flavour = "A single Milk-white lantern bowing gently above frosted gravel."
+almanac_flavour = "A single milk-white lantern bows gently above frosted gravel in the hush of January. Inside its outer petals hides a tiny emerald chevron marking winter's turn."
 
 [sprites.unicode]
 seed = " · "

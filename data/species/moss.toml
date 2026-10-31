@@ -7,7 +7,7 @@ growth_multiplier = 1.05
 preferred_seasons = ["winter", "autumn"]
 seasonal_sprout_only = false
 color_hint = "green"
-almanac_flavour = "Velvet emerald domes that stay quietly green through frost and rain alike."
+almanac_flavour = "Velvet emerald domes stay quietly green through mist, frost, and winter rain alike. Press lightly and the cushion springs back, patient as old river stone."
 
 [sprites.unicode]
 seed = " · "

@@ -7,7 +7,7 @@ growth_multiplier = 1.05
 preferred_seasons = ["spring", "summer"]
 seasonal_sprout_only = false
 color_hint = "green"
-almanac_flavour = "Soft three-leaf mats that quietly fill the corners between stepping stones."
+almanac_flavour = "Soft three-leaf mats quietly weave across the cool gravel between stepping stones. Dewdrops linger in each folded leaflet long after morning compilation finishes."
 
 [sprites.unicode]
 seed = " · "
