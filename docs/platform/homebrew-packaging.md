@@ -48,11 +48,11 @@ Before publishing `quiinthieu/homebrew-tap` and `.github/workflows/release.yml`,
   - When a user installs `brew install --cask quiinthieu/tap/niwa-garden`, Homebrew taps `quiinthieu/homebrew-tap` first and resolves `depends_on formula: "niwa"` via `Formula["niwa"]` (`TopologicalHash.graph_package_dependencies`), finding `Formula/niwa.rb` in the same tap (`quiinthieu/tap`) since no `niwa` formula exists in `homebrew/core`.
 - **Minimum macOS version & RuboCop stanza ordering (`brew audit --strict`):**
   - `Niwa.app` builds with `MACOSX_DEPLOYMENT_TARGET = 14.0` (`LSMinimumSystemVersion = 14.0`, macOS Sonoma).
-  - `Cask::Audit#audit_min_os` requires casks targeting macOS 14+ to declare **`depends_on macos: ">= :sonoma"`**.
+  - `Cask::Audit#audit_min_os` and `Homebrew/OSDependsOn` (`Homebrew 7.0.11`) require casks targeting macOS 14+ to declare **`depends_on macos: :sonoma`** (replacing legacy `">= :sonoma"`).
   - `RuboCop::Cop::Cask::StanzaOrder#depends_on_sort_key` sorts consecutive `depends_on` stanzas alphabetically by symbol key (`"formula"` before `"macos"`), so the strict-audit-clean stanza order is:
     ```ruby
     depends_on formula: "niwa"
-    depends_on macos: ">= :sonoma"
+    depends_on macos: :sonoma
     ```
 
 ---

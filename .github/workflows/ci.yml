@@ -86,3 +86,7 @@ jobs:
         run: |
           xcodegen generate --spec macos/Project.yml --project macos
           xcodebuild -project macos/TerminalGarden.xcodeproj -scheme TerminalGarden test
+
+      - name: Verify Homebrew formula and cask (brew audit --strict & build-from-source)
+        if: runner.os == 'macOS'
+        run: ./scripts/verify-homebrew-ci.sh
