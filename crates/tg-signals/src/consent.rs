@@ -215,9 +215,13 @@ fn validate_signal(signal: &'static str, d: &SignalDisclosure) -> Result<(), Con
     Ok(())
 }
 
-/// Returns `true` only when `signal` is explicitly enabled AND has a recorded `consented_at` timestamp.
+/// Returns `true` only when signals are not globally paused AND `signal` is explicitly enabled
+/// with a recorded `consented_at` timestamp.
 #[must_use]
 pub const fn is_signal_enabled(config: &AppConfig, signal: SignalKind) -> bool {
+    if config.signals.paused {
+        return false;
+    }
     let consent = config.signals.consent(signal);
     consent.enabled && consent.consented_at.is_some()
 }
@@ -233,9 +237,13 @@ pub fn any_signal_enabled(config: &AppConfig) -> bool {
         .any(|kind| is_signal_enabled(config, kind))
 }
 
-/// Returns `true` only when `event`'s signal is enabled AND `event.timestamp() >= consented_at`.
+/// Returns `true` only when signals are not paused, `event`'s signal is enabled, AND
+/// `event.timestamp() >= consented_at`.
 #[must_use]
 pub fn is_event_consented(config: &AppConfig, event: WorkEvent) -> bool {
+    if config.signals.paused {
+        return false;
+    }
     let consent = config.signals.consent(event.signal_kind());
     if !consent.enabled {
         return false;

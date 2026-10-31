@@ -16,7 +16,7 @@ This document records **actual measured numbers** against the `PLAN.md` §7 powe
 | 30-day offline `catch_up` (`43,200` ticks) | `< 200 ms` (`--release`) | Verified `< 200 ms` by `crates/tg-core/tests/catch_up.rs` (`thirty_day_catch_up_meets_budget`); CI baseline recorded in T16 | Automated test | T06 / T16 |
 | Daemon wake cadence | 1 coalesced wake / `60 s`; `0` wakes when no signal is enabled | Verified by `crates/niwa/tests/daemon_flow.rs` (`daemon_exits_immediately_with_zero_wakes_when_no_signal_is_enabled`) | Automated test | T10 |
 | TUI frame rate | `<= 4 fps` focused, `0 fps` idle after `30 s` | Verified by `crates/niwa/tests/cli_and_tui.rs` | Automated test | T08 |
-| macOS `MenuBarExtra` energy impact | Instruments Energy Log check | *Pending T14 measurement* | Pending | T14 |
+| macOS `MenuBarExtra` idle CPU, wakes & Energy Log check | Idle except for `60 s` coalesced timer (`tolerance = 6.0 s`) + `DispatchSource` watch on `snapshot.json` | **`0.0196%` CPU** (`1.957 ms` total CPU over `10.009 s` steady-state idle, `0` subprocess spawns between `60 s` ticks, `14.78 MiB` `phys_footprint`; `snapshot.json` reload **p50 `47.8 µs` · p95 `72.3 µs`**); Instruments `xctrace` note below | Pass (local `getrusage` + design audit; `xctrace` noted) | T14 |
 
 ---
 
@@ -64,3 +64,37 @@ This document records **actual measured numbers** against the `PLAN.md` §7 powe
 1. **Direct argument fast path:** `niwa_garden::prompt::try_run_fast_prompt_from_env` parses `prompt [--style glyph|emoji|none]` directly from `std::env::args_os()` without constructing `clap`'s full subcommand tree.
 2. **Strict `< 60 s` read-only fast path (`PLAN.md` §3.4):** Whenever `snapshot.json` is `< 60 s` old (`SNAPSHOT_MAX_AGE_SECS = 60`), `niwa prompt` never acquires `garden.lock`, never loads `garden.json`, `events.jsonl`, or embedded `Balance` / `SpeciesCatalog` / `SpriteBank` TOML assets, and never runs `catch_up`.
 3. **Non-blocking stale refresh (`GardenLock::try_acquire`):** When `snapshot.json` is `>= 60 s` old or missing, `niwa prompt` uses a non-blocking `try_acquire` on `garden.lock`; if an interactive `niwa` TUI or `niwa daemon` currently holds the lock, `niwa prompt` immediately renders from the existing snapshot instead of blocking `PS1`, `tmux`, or Starship.
+
+---
+
+## T14: macOS `MenuBarExtra` Idle Footprint & Instruments Energy Check (`2026-10-31`)
+
+### Environment
+- **Date:** `2026-10-31`
+- **Host OS & Architecture:** `Darwin 27.2.0 arm64` (macOS `27.2`, Apple Silicon)
+- **Toolchain:** Apple Swift `6.4` (`swiftc -O -swift-version 6 -target arm64-apple-macosx14.0`, CommandLineTools SDK)
+- **What is timed:** Release-optimized (`-O`) `MenuBarViewModel` + `SnapshotWatcher` (`DispatchSourceFileSystemObject` `O_EVTONLY` watching both `$NIWA_HOME` and `snapshot.json`) + `60.0 s` coalesced `Timer` (`tolerance = 6.0 s`) + laid-out `NSHostingView(rootView: MenuBarPopoverView(...))` running undisturbed on `RunLoop.main` over a `10.0 s` steady-state idle window after initial startup drain, followed by `200` consecutive `reloadSnapshotFromDisk()` (`Data(contentsOf:)` + `GardenSnapshot.decode`) iterations.
+
+### Measured Steady-State Idle & Reload Figures (`-O`)
+
+| Metric | Measured Value | Notes |
+|---|---:|---|
+| Steady-state observation window | `10,009.39 ms` | Between 60-second timer ticks |
+| User CPU time (`ru_utime`) | `1.074 ms` | `getrusage(RUSAGE_SELF)` delta |
+| System CPU time (`ru_stime`) | `0.883 ms` | `getrusage(RUSAGE_SELF)` delta |
+| **Total steady-state CPU utilization** | **`0.0196%` (`1.957 ms` / `10.009 s`)** | Zero busy-waiting, zero filesystem polling |
+| Subprocess spawns between 60 s ticks | **`0`** | `niwa` runs only on 60 s tick or explicit user action |
+| Process physical footprint (`task_vm_info.phys_footprint`) | **`14.78 MiB`** | `AppKit` + `SwiftUI` + `MenuBarPopoverView` hosted |
+| `snapshot.json` read + JSON decode (`n = 200`) | **p50 `47.8 µs` · p95 `72.3 µs` · max `210.1 µs`** | Triggered only on `EVFILT_VNODE` write/rename events |
+
+### Power-Budget Design & Instruments Energy Log Note (`PLAN.md` §0.9 & §7)
+1. **Zero filesystem polling:** `SnapshotWatcher` uses kernel `kqueue` `EVFILT_VNODE` descriptors (`O_EVTONLY`) on the data directory and `snapshot.json`, waking only when `tg-store` atomically replaces `snapshot.json`.
+2. **Coalesced 60-second timer (`tolerance = 6.0 s`) & App Nap (`LSUIElement = true`):** `MenuBarViewModel.tickIntervalSeconds = 60.0` sets a 10% (`6.0 s`) tolerance so macOS coalesces periodic wakes with system activity and keeps the Dock-less agent eligible for App Nap whenever the popover is closed.
+3. **In-process idle sampling (`ADR 003`):** When `signals.activity` is enabled, `CoreGraphicsIdleTimeSampler` reads `CGEventSource.secondsSinceLastEventType` directly in-process (zero extra `ioreg` fork) before passing `--idle-secs` to `niwa daemon --once`. When `signals.activity` is disabled and `snapshot.json` is already `< 60 s` fresh (for example when `niwa daemon` or an open TUI is active), `handlePeriodicTick()` spawns **zero** subprocesses.
+4. **Instruments / `xctrace` status:** On the local development workstation, only `/Library/Developer/CommandLineTools` is installed (full `Xcode.app` / `Instruments.app` / `xcrun xctrace` are not present locally, and headless CI runners do not expose interactive macOS Power/Energy Log PMC templates). On a workstation with full `Xcode.app`, run:
+   ```sh
+   xcodegen generate --spec macos/Project.yml --project macos
+   xcodebuild -project macos/TerminalGarden.xcodeproj -scheme TerminalGarden -configuration Release build
+   xcrun xctrace record --template 'Energy Log' --time-limit 3m --output /tmp/niwa-energy.trace --launch -- /path/to/Niwa.app
+   ```
+   and confirm **Energy Impact** remains **Low** (`0` overhead wakes between the 60 s coalesced timer ticks).

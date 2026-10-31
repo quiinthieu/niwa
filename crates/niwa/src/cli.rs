@@ -12,11 +12,12 @@ use clap::{Args, Parser, Subcommand};
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 use tg_core::clock::Clock;
 use tg_core::product;
 use tg_core::species::SpriteSet;
 use tg_render::Viewport;
-use tg_signals::activity::PlatformIdleSource;
+use tg_signals::activity::{FakeIdleSource, IdleSource, PlatformIdleSource};
 use tg_signals::consent::{is_signal_enabled, ConsentCatalog};
 use tg_signals::{EventSpool, SignalKind};
 use tg_store::clock::SystemClock;
@@ -50,6 +51,8 @@ pub enum Commands {
     Peek(PeekArgs),
     /// Inspect garden status in human-readable form or versioned JSON (`--json`).
     Status(StatusArgs),
+    /// Harvest blooming plants (`--all` or `--plot <INDEX>`) and collect seed drops.
+    Harvest(HarvestArgs),
     /// Read or update `config.toml` settings.
     Config {
         #[command(subcommand)]
@@ -92,6 +95,17 @@ pub struct StatusArgs {
     pub json: bool,
 }
 
+#[derive(Args, Debug)]
+pub struct HarvestArgs {
+    /// Harvest every blooming plot in the garden (default when `--plot` is omitted).
+    #[arg(long)]
+    pub all: bool,
+
+    /// Harvest a single 0-based plot index instead of all blooming plots.
+    #[arg(long, conflicts_with = "all")]
+    pub plot: Option<usize>,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum ConfigCommand {
     /// Print the current value of a setting key (e.g. `fps`, `sprites`, `hemisphere`).
@@ -130,6 +144,10 @@ pub enum SignalsCommand {
         #[arg(long)]
         purge: bool,
     },
+    /// Temporarily pause all opt-in signal collection while preserving consent records.
+    Pause,
+    /// Resume opt-in signal collection after `pause` without re-prompting for consent.
+    Resume,
 }
 
 #[derive(Args, Debug)]
@@ -142,6 +160,10 @@ pub struct DaemonArgs {
     /// Stop after at most N wake iterations.
     #[arg(long, value_name = "N")]
     pub max_ticks: Option<u64>,
+
+    /// Inject a host-sampled idle duration in seconds (used by the macOS menu bar companion).
+    #[arg(long, value_name = "SECS", allow_hyphen_values = true)]
+    pub idle_secs: Option<f64>,
 
     #[command(subcommand)]
     pub action: Option<DaemonCommand>,
@@ -158,6 +180,10 @@ pub enum DaemonCommand {
         /// Stop after at most N wake iterations.
         #[arg(long, value_name = "N")]
         max_ticks: Option<u64>,
+
+        /// Inject a host-sampled idle duration in seconds (used by the macOS menu bar companion).
+        #[arg(long, value_name = "SECS", allow_hyphen_values = true)]
+        idle_secs: Option<f64>,
     },
     /// Write the per-user launchd (macOS) or systemd (Linux) daemon unit file.
     Install {
@@ -200,6 +226,7 @@ pub fn execute_with(cli: Cli, paths: NiwaPaths, clock: &dyn Clock) -> anyhow::Re
         }
         Some(Commands::Peek(args)) => run_peek(paths, clock, cli.no_color, &args),
         Some(Commands::Status(args)) => run_status(paths, clock, &args),
+        Some(Commands::Harvest(args)) => run_harvest(paths, clock, &args),
         Some(Commands::Config { action }) => run_config(paths, clock, action),
         Some(Commands::Signals(args)) => run_signals(paths, clock, args),
         Some(Commands::Daemon(args)) => run_daemon(paths, clock, args),
@@ -263,6 +290,43 @@ fn run_status(paths: NiwaPaths, clock: &dyn Clock, args: &StatusArgs) -> anyhow:
             stdout,
             "{}",
             format_status_human(&report, session.catalog())
+        )?;
+    }
+    Ok(())
+}
+
+fn run_harvest(paths: NiwaPaths, clock: &dyn Clock, args: &HarvestArgs) -> anyhow::Result<()> {
+    let mut session = GardenSession::open(paths, clock, None)?;
+    emit_recovery_notice(&session);
+    let now = clock.now();
+
+    let outcomes = match args.plot {
+        Some(plot_index) => vec![session.harvest(plot_index, now)?],
+        None => session.harvest_all(now)?,
+    };
+
+    let mut stdout = io::stdout().lock();
+    if outcomes.is_empty() {
+        writeln!(stdout, "No blooming plants ready to harvest.")?;
+        return Ok(());
+    }
+
+    for outcome in &outcomes {
+        let drops = if outcome.dropped_seeds.is_empty() {
+            "no seed drops".to_string()
+        } else {
+            outcome
+                .dropped_seeds
+                .iter()
+                .map(|(_, name)| name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        writeln!(
+            stdout,
+            "Harvested {} from plot {} (seeds: {drops}).",
+            outcome.harvested_display_name,
+            outcome.plot_index + 1,
         )?;
     }
     Ok(())
@@ -338,6 +402,10 @@ pub fn run_signals_with_io(
                 let status = if is_signal_enabled(&config, kind) {
                     let ts = consent.consented_at.map_or(0, |t| t.as_unix_secs());
                     format!("enabled (consented_at = {ts})")
+                } else if config.signals.paused && consent.enabled && consent.consented_at.is_some()
+                {
+                    let ts = consent.consented_at.map_or(0, |t| t.as_unix_secs());
+                    format!("paused (consented_at = {ts})")
                 } else {
                     "disabled".to_string()
                 };
@@ -410,22 +478,30 @@ pub fn run_signals_with_io(
                 writeln!(writer, "Disabled signal '{}'.", kind.as_str())?;
             }
         }
+        SignalsCommand::Pause => {
+            let mut config = config_store.load()?;
+            config.signals.paused = true;
+            config_store.save(&config)?;
+            writeln!(writer, "Paused all opt-in work signals.")?;
+        }
+        SignalsCommand::Resume => {
+            let mut config = config_store.load()?;
+            config.signals.paused = false;
+            config_store.save(&config)?;
+            writeln!(writer, "Resumed opt-in work signals.")?;
+        }
     }
     Ok(())
 }
 
 fn run_daemon(paths: NiwaPaths, clock: &dyn Clock, args: DaemonArgs) -> anyhow::Result<()> {
     match args.action {
-        None => {
-            let max_wakes = resolve_daemon_max_wakes(args.once, args.max_ticks);
-            let _ = run_daemon_loop(paths, clock, &PlatformIdleSource, &ThreadSleeper, max_wakes)?;
-            Ok(())
-        }
-        Some(DaemonCommand::Run { once, max_ticks }) => {
-            let max_wakes = resolve_daemon_max_wakes(once, max_ticks);
-            let _ = run_daemon_loop(paths, clock, &PlatformIdleSource, &ThreadSleeper, max_wakes)?;
-            Ok(())
-        }
+        None => run_daemon_ticks(paths, clock, args.once, args.max_ticks, args.idle_secs),
+        Some(DaemonCommand::Run {
+            once,
+            max_ticks,
+            idle_secs,
+        }) => run_daemon_ticks(paths, clock, once, max_ticks, idle_secs),
         Some(DaemonCommand::Install { bin }) => {
             let unit_paths = DaemonUnitPaths::resolve()?;
             let binary_path = match bin {
@@ -456,6 +532,33 @@ const fn resolve_daemon_max_wakes(once: bool, max_ticks: Option<u64>) -> Option<
     } else {
         max_ticks
     }
+}
+
+fn run_daemon_ticks(
+    paths: NiwaPaths,
+    clock: &dyn Clock,
+    once: bool,
+    max_ticks: Option<u64>,
+    idle_secs: Option<f64>,
+) -> anyhow::Result<()> {
+    let max_wakes = resolve_daemon_max_wakes(once, max_ticks);
+    let injected = match idle_secs {
+        Some(secs) => {
+            if !secs.is_finite() || secs < 0.0 {
+                anyhow::bail!("--idle-secs must be a non-negative finite number of seconds");
+            }
+            Some(FakeIdleSource::constant(Some(Duration::from_secs_f64(
+                secs,
+            ))))
+        }
+        None => None,
+    };
+    let idle_source: &dyn IdleSource = match &injected {
+        Some(fake) => fake,
+        None => &PlatformIdleSource,
+    };
+    let _ = run_daemon_loop(paths, clock, idle_source, &ThreadSleeper, max_wakes)?;
+    Ok(())
 }
 
 fn run_reset(paths: NiwaPaths, args: &ResetArgs) -> anyhow::Result<()> {

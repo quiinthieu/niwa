@@ -704,6 +704,25 @@ impl GardenSession {
         })
     }
 
+    /// Harvests every `Blooming` plot in plot-index order, leaving non-blooming and empty plots
+    /// untouched (`PLAN.md` §10 T14).
+    pub fn harvest_all(&mut self, now: Timestamp) -> Result<Vec<HarvestOutcome>, ActionError> {
+        let plot_count = self.garden.plots().len();
+        let mut outcomes = Vec::new();
+        for plot_index in 0..plot_count {
+            let is_blooming = self
+                .garden
+                .plots()
+                .get(plot_index)
+                .and_then(|plot| plot.plant())
+                .is_some_and(tg_core::model::Plant::is_blooming);
+            if is_blooming {
+                outcomes.push(self.harvest(plot_index, now)?);
+            }
+        }
+        Ok(outcomes)
+    }
+
     /// Composts the plant at `plot_index` (any stage) and awards 1 seed of the exact same rarity
     /// (PLAN §4.2 & §10 T08).
     pub fn compost(
