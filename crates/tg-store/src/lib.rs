@@ -10,5 +10,6 @@ pub mod lock;
 pub mod migrate;
 pub mod paths;
 pub mod save;
+pub mod shell_hook;
 pub mod snapshot;
 pub mod spool;

@@ -56,6 +56,15 @@ impl NiwaPaths {
 
     /// Resolves paths from the current host environment (`NIWA_HOME`, XDG vars, and `directories`).
     pub fn resolve() -> Result<Self, StoreError> {
+        if non_empty_os(std::env::var_os("NIWA_HOME")).is_some()
+            || non_empty_os(std::env::var_os("HOME")).is_some()
+        {
+            return Self::resolve_from_env(
+                PlatformKind::current(),
+                |key| std::env::var_os(key),
+                None,
+            );
+        }
         let base_dirs = BaseDirs::new();
         let fallback_home = base_dirs.as_ref().map(BaseDirs::home_dir);
         Self::resolve_from_env(

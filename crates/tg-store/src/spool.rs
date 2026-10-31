@@ -253,27 +253,38 @@ impl EventSpool {
     /// Appends one JSONL event line with `O_APPEND` and no lock wait (PLAN §5 & §7).
     pub fn append(&self, event: WorkEvent) -> Result<(), StoreError> {
         let path = self.paths.events_file();
-        self.paths.ensure_dirs().map_err(|source| StoreError::Io {
-            path: self.paths.data_dir().to_path_buf(),
-            action: "create data directory for events.jsonl",
-            source,
-        })?;
-
         let mut line = serde_json::to_vec(&event).map_err(|source| StoreError::Json {
             path: path.clone(),
             source,
         })?;
         line.push(b'\n');
 
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .map_err(|source| StoreError::Io {
-                path: path.clone(),
-                action: "open events.jsonl for append",
-                source,
-            })?;
+        let mut file = match OpenOptions::new().create(true).append(true).open(&path) {
+            Ok(file) => file,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                self.paths.ensure_dirs().map_err(|source| StoreError::Io {
+                    path: self.paths.data_dir().to_path_buf(),
+                    action: "create data directory for events.jsonl",
+                    source,
+                })?;
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                    .map_err(|source| StoreError::Io {
+                        path: path.clone(),
+                        action: "open events.jsonl for append",
+                        source,
+                    })?
+            }
+            Err(source) => {
+                return Err(StoreError::Io {
+                    path: path.clone(),
+                    action: "open events.jsonl for append",
+                    source,
+                });
+            }
+        };
         file.write_all(&line).map_err(|source| StoreError::Io {
             path,
             action: "append line to events.jsonl",

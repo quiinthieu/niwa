@@ -2,5 +2,7 @@
 
 pub mod cli;
 pub mod daemon;
+pub mod hook;
+pub mod ingest;
 pub mod runtime;
 pub mod tui;

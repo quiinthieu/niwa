@@ -3,6 +3,8 @@
 use crate::daemon::{
     run_daemon_install, run_daemon_loop, run_daemon_status, run_daemon_uninstall, ThreadSleeper,
 };
+use crate::hook::{run_hook_with_writer, HookArgs};
+use crate::ingest::{run_ingest, IngestArgs};
 use crate::runtime::{format_status_human, resolve_color_tier, GardenSession};
 use crate::tui::ui::run_interactive_tui;
 use clap::{Args, Parser, Subcommand};
@@ -56,8 +58,13 @@ pub enum Commands {
     Signals(SignalsArgs),
     /// Run the 60-second background daemon loop or install/uninstall per-user service units.
     Daemon(DaemonArgs),
+    /// Print `zsh`, `bash`, or `fish` hook snippets or install/uninstall the marked rc block.
+    Hook(HookArgs),
     /// Delete persisted garden state (and `--all` to also remove `config.toml` and `events.jsonl`).
     Reset(ResetArgs),
+    /// Internal fast-path event appender invoked asynchronously by shell hooks.
+    #[command(name = "_ingest", hide = true)]
+    Ingest(IngestArgs),
 }
 
 #[derive(Args, Debug)]
@@ -193,7 +200,15 @@ pub fn execute_with(cli: Cli, paths: NiwaPaths, clock: &dyn Clock) -> anyhow::Re
         Some(Commands::Config { action }) => run_config(paths, clock, action),
         Some(Commands::Signals(args)) => run_signals(paths, clock, args),
         Some(Commands::Daemon(args)) => run_daemon(paths, clock, args),
+        Some(Commands::Hook(args)) => {
+            let mut stdout = io::stdout().lock();
+            run_hook_with_writer(&paths, args, &mut stdout)
+        }
         Some(Commands::Reset(args)) => run_reset(paths, &args),
+        Some(Commands::Ingest(args)) => {
+            let _ = run_ingest(&paths, clock, &args)?;
+            Ok(())
+        }
     }
 }
 
