@@ -1,0 +1,12 @@
+[Unit]
+Description=Niwa background garden daemon
+Documentation=https://github.com/quiinthieu/niwa
+
+[Service]
+Type=simple
+ExecStart=@NIWA_BIN@ daemon
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

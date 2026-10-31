@@ -71,7 +71,9 @@ Unless overridden by `NIWA_HOME` (used by isolated tests or portable setups), Ni
   - Config: `${XDG_CONFIG_HOME:-~/.config}/niwa/config.toml`
   - State & data: `${XDG_STATE_HOME:-~/.local/state}/niwa/` (`garden.json`, `garden.json.bak`, `events.jsonl`, `snapshot.json`, `garden.lock`)
 
-The only file outside those directories Niwa can ever touch is your shell startup file, and **only** when you explicitly run `niwa hook install --write-rc` (which writes a clearly marked removable block with a backup).
+The only files outside those directories Niwa can ever touch—and **only** on explicit opt-in installer subcommands—are:
+- Your per-user background service unit when you run `niwa daemon install` / `niwa daemon uninstall` (`~/Library/LaunchAgents/io.github.quiinthieu.niwa.daemon.plist` on macOS, or `${XDG_CONFIG_HOME:-~/.config}/systemd/user/niwa.service` on Linux).
+- Your shell startup file when you run `niwa hook install --write-rc` / `niwa hook uninstall` (which writes a clearly marked removable block with a backup).
 
 ---
 

@@ -1,6 +1,7 @@
-//! tg-signals: Opt-in work signal consent disclosures, collection gate, and diminishing-returns
-//! water-cap evaluator (PLAN §3.1, §4.1, §5 & §10 T09).
+//! tg-signals: Opt-in work signal consent disclosures, collection gate, activity idle sampler,
+//! and diminishing-returns water-cap evaluator (PLAN §3.1, §4.1, §5 & §10 T09–T10).
 
+pub mod activity;
 pub mod consent;
 pub mod evaluator;
 
