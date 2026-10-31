@@ -182,6 +182,8 @@ pub struct SignalConsent {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SignalsConfig {
     #[serde(default)]
+    pub paused: bool,
+    #[serde(default)]
     pub activity: SignalConsent,
     #[serde(default)]
     pub git: SignalConsent,
@@ -290,13 +292,14 @@ impl Default for AppConfig {
 
 impl AppConfig {
     /// Canonical list of dot-keys exposed by `niwa config list` (PLAN §6).
-    pub const ALL_KEYS: [&'static str; 16] = [
+    pub const ALL_KEYS: [&'static str; 17] = [
         "sprites",
         "color",
         "fps",
         "season_mode",
         "hemisphere",
         "dormant_after_days",
+        "signals.paused",
         "signals.activity.enabled",
         "signals.activity.consented_at",
         "signals.git.enabled",
@@ -371,6 +374,7 @@ impl AppConfig {
             }
             .to_string()),
             "dormant_after_days" => Ok(self.dormant_after_days.to_string()),
+            "signals.paused" => Ok(self.signals.paused.to_string()),
             "signals.activity" | "signals.activity.enabled" => {
                 Ok(self.signals.activity.enabled.to_string())
             }
@@ -474,6 +478,9 @@ impl AppConfig {
                     ));
                 }
                 self.dormant_after_days = parsed;
+            }
+            "signals.paused" => {
+                self.signals.paused = parse_bool(key, value)?;
             }
             "signals.activity" | "signals.activity.enabled" => {
                 set_signal_enabled(&mut self.signals.activity, key, value, now)?;
