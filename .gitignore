@@ -1,0 +1,15 @@
+# Rust
+/target/
+Cargo.lock.bak
+
+# Xcode / macOS
+.DS_Store
+DerivedData/
+.build/
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+
+# Environment / local overrides
+.env
+.env.local
