@@ -12,6 +12,7 @@ use std::fmt;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use tg_core::catch_up::CatchUpOutcome;
 use tg_core::clock::Timestamp;
 use tg_core::model::Plot;
 use tg_core::sim::Garden;
@@ -89,6 +90,23 @@ impl GardenSave {
         self.tick_index = garden.tick_index();
         self.inactive_ticks = garden.inactive_ticks();
         self.dormant = garden.is_dormant();
+    }
+
+    /// Persists updated [`Garden`] state and accumulates [`CatchUpOutcome`] diagnostic counters.
+    pub fn record_catch_up(&mut self, garden: &Garden, outcome: &CatchUpOutcome) {
+        self.apply_garden(garden);
+        self.diagnostics.clock_skew_events = self
+            .diagnostics
+            .clock_skew_events
+            .saturating_add(outcome.diagnostics.clock_skew_events);
+        self.diagnostics.dropped_future_events = self
+            .diagnostics
+            .dropped_future_events
+            .saturating_add(outcome.diagnostics.dropped_future_events);
+        self.diagnostics.dropped_pre_creation_events = self
+            .diagnostics
+            .dropped_pre_creation_events
+            .saturating_add(outcome.diagnostics.dropped_pre_creation_events);
     }
 
     #[must_use]

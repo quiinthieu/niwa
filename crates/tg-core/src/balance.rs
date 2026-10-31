@@ -1,6 +1,6 @@
 //! Tunable gameplay balance parameters loaded from `data/balance.toml` (PLAN §0.9 & §4).
 
-use crate::clock::TICKS_PER_DAY;
+use crate::clock::{TICKS_PER_DAY, TICKS_PER_HOUR};
 use crate::model::Stage;
 use crate::species::Rarity;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,10 @@ pub enum BalanceError {
     ZeroSeasonLengthDays,
     #[error("seeds_per_harvest must be at least 1")]
     ZeroSeedsPerHarvest,
+    #[error("catch_up.chunk_ticks must be at least 1")]
+    ZeroChunkTicks,
+    #[error("catch_up.offline_tail_factor must be <= 1.0")]
+    TailFactorExceedsOne,
     #[error("drop table weights must include at least one positive rarity and season weight")]
     ZeroDropWeights,
     #[error("stage threshold at index {stage_index} must be >= 1, got {value}")]
@@ -38,6 +42,8 @@ struct RawBalance {
     garden: RawGardenSection,
     growth: RawGrowthSection,
     dormancy: RawDormancySection,
+    #[serde(default)]
+    catch_up: RawCatchUpSection,
     #[serde(default)]
     seasons: RawSeasonsSection,
     #[serde(default)]
@@ -64,6 +70,24 @@ struct RawGrowthSection {
 #[serde(deny_unknown_fields)]
 struct RawDormancySection {
     dormant_after_days: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawCatchUpSection {
+    offline_cap_hours: u32,
+    offline_tail_factor: f64,
+    chunk_ticks: u64,
+}
+
+impl Default for RawCatchUpSection {
+    fn default() -> Self {
+        Self {
+            offline_cap_hours: 72,
+            offline_tail_factor: 0.5,
+            chunk_ticks: TICKS_PER_DAY,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -106,6 +130,31 @@ impl Default for RawDropsSection {
             in_season_weight_multiplier: 3,
             off_season_weight_multiplier: 1,
             seeds_per_harvest: 1,
+        }
+    }
+}
+
+/// Validated offline catch-up parameters (`offline_cap`, tail factor, and chunk size; PLAN §4.1 & T06).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CatchUpBalance {
+    pub offline_cap_hours: u32,
+    pub offline_tail_factor_bp: u32,
+    pub chunk_ticks: u64,
+}
+
+impl CatchUpBalance {
+    #[must_use]
+    pub const fn offline_cap_ticks(&self) -> u64 {
+        (self.offline_cap_hours as u64).saturating_mul(TICKS_PER_HOUR)
+    }
+}
+
+impl Default for CatchUpBalance {
+    fn default() -> Self {
+        Self {
+            offline_cap_hours: 72,
+            offline_tail_factor_bp: 5_000,
+            chunk_ticks: TICKS_PER_DAY,
         }
     }
 }
@@ -254,6 +303,7 @@ pub struct Balance {
     pub default_profile: GrowthProfile,
     pub default_season_multiplier_bp: u32,
     pub dormant_after_days: u32,
+    pub catch_up: CatchUpBalance,
     pub seasons: SeasonBalance,
     pub drops: DropBalance,
 }
@@ -277,6 +327,14 @@ impl Balance {
         }
         if parsed.drops.seeds_per_harvest == 0 {
             return Err(BalanceError::ZeroSeedsPerHarvest);
+        }
+        if parsed.catch_up.chunk_ticks == 0 {
+            return Err(BalanceError::ZeroChunkTicks);
+        }
+        let offline_tail_factor_bp =
+            multiplier_to_bp("offline_tail_factor", parsed.catch_up.offline_tail_factor)?;
+        if offline_tail_factor_bp > MULTIPLIER_BP_SCALE {
+            return Err(BalanceError::TailFactorExceedsOne);
         }
 
         let total_rarity_weight = parsed
@@ -319,6 +377,11 @@ impl Balance {
             default_profile,
             default_season_multiplier_bp: season_bp,
             dormant_after_days: parsed.dormancy.dormant_after_days,
+            catch_up: CatchUpBalance {
+                offline_cap_hours: parsed.catch_up.offline_cap_hours,
+                offline_tail_factor_bp,
+                chunk_ticks: parsed.catch_up.chunk_ticks,
+            },
             seasons: SeasonBalance {
                 season_length_days: parsed.seasons.season_length_days,
                 preferred_season_multiplier_bp: preferred_season_bp,
@@ -351,12 +414,34 @@ impl Balance {
         species_multiplier_bp: u32,
         season_multiplier_bp: u32,
     ) -> u64 {
+        self.compute_tick_gp_with_base_scale(
+            active,
+            water_gp,
+            MULTIPLIER_BP_SCALE,
+            species_multiplier_bp,
+            season_multiplier_bp,
+        )
+    }
+
+    /// Computes exact integer per-tick GP scaling `base` by `base_scale_bp` (`10_000 == 1.0x`,
+    /// or `offline_tail_factor_bp` after `offline_cap`).
+    #[must_use]
+    pub fn compute_tick_gp_with_base_scale(
+        &self,
+        active: bool,
+        water_gp: u64,
+        base_scale_bp: u32,
+        species_multiplier_bp: u32,
+        season_multiplier_bp: u32,
+    ) -> u64 {
         let sun = if active { self.sun_gp_per_tick } else { 0 };
-        let raw = u128::from(self.base_gp_per_tick)
-            .saturating_add(u128::from(sun))
-            .saturating_add(u128::from(water_gp));
-        let denom = u128::from(MULTIPLIER_BP_SCALE) * u128::from(MULTIPLIER_BP_SCALE);
-        let scaled = raw
+        let scale = u128::from(MULTIPLIER_BP_SCALE);
+        let raw_bp = u128::from(self.base_gp_per_tick)
+            .saturating_mul(u128::from(base_scale_bp))
+            .saturating_add(u128::from(sun).saturating_mul(scale))
+            .saturating_add(u128::from(water_gp).saturating_mul(scale));
+        let denom = scale * scale * scale;
+        let scaled = raw_bp
             .saturating_mul(u128::from(species_multiplier_bp))
             .saturating_mul(u128::from(season_multiplier_bp))
             / denom;

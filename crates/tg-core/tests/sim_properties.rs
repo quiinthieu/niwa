@@ -1,6 +1,8 @@
 use proptest::prelude::*;
 use std::collections::BTreeMap;
-use tg_core::balance::{Balance, DropBalance, GrowthProfile, SeasonBalance, MULTIPLIER_BP_SCALE};
+use tg_core::balance::{
+    Balance, CatchUpBalance, DropBalance, GrowthProfile, SeasonBalance, MULTIPLIER_BP_SCALE,
+};
 use tg_core::clock::Timestamp;
 use tg_core::sim::{Garden, TickInput};
 
@@ -72,6 +74,7 @@ proptest! {
             default_profile,
             default_season_multiplier_bp: MULTIPLIER_BP_SCALE,
             dormant_after_days,
+            catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
         };
@@ -139,6 +142,7 @@ proptest! {
             default_profile: profile,
             default_season_multiplier_bp: MULTIPLIER_BP_SCALE,
             dormant_after_days,
+            catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
         };
@@ -175,6 +179,7 @@ proptest! {
             default_profile,
             default_season_multiplier_bp: MULTIPLIER_BP_SCALE,
             dormant_after_days,
+            catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
         };

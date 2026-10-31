@@ -2,6 +2,7 @@
 //! No I/O, no clock, no env.
 
 pub mod balance;
+pub mod catch_up;
 pub mod clock;
 pub mod drops;
 pub mod model;

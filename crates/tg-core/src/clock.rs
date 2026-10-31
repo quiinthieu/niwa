@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 /// Duration of one garden simulation tick in seconds (PLAN §2).
 pub const TICK_SECS: i64 = 60;
 
+/// Number of 60-second simulation ticks in one hour.
+pub const TICKS_PER_HOUR: u64 = 60;
+
 /// Number of 60-second simulation ticks in one 24-hour day.
 pub const TICKS_PER_DAY: u64 = 24 * 60;
 
