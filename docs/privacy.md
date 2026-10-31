@@ -45,7 +45,7 @@ Niwa is a local-only idle garden. Privacy is a hard architectural rule enforced 
 
 ## Aggregate Counters in `garden.json`
 
-To enforce hourly/daily water caps across spool compactions and surface data-integrity issues without keeping raw event history, `garden.json` stores two small numeric structs:
+To enforce hourly/daily water caps across spool compactions, deduplicate `git` polls without storing commit hashes or paths, and surface data-integrity issues without keeping raw event history, `garden.json` stores small numeric structs only:
 
 - **`water_budget` (`WaterBudgetState`):**
   - `hour_bucket` (`Option<i64>`): UTC hour index (`unix_secs / 3600`).
@@ -54,6 +54,10 @@ To enforce hourly/daily water caps across spool compactions and surface data-int
   - `day_bucket` (`Option<i64>`): UTC day index (`unix_secs / 86400`).
   - `day_water_gp` (`u64`): water GP granted in `day_bucket`.
   - `last_shell_ts` (`Option<i64>`): Unix timestamp in seconds of the most recent water-granting shell event (used for minimum spacing).
+- **`git_poll` (`GitPollState`, omitted when empty):**
+  - `consent_anchor` (`Option<i64>`): `signals.git.consented_at` Unix timestamp in seconds anchoring the poll cursor.
+  - `last_poll_at` (`Option<i64>`): Unix timestamp in seconds of the most recent read-only `git log` poll.
+  - `credited_commits` (`u64`): cumulative count of unique post-consent commits already credited across configured repositories (prevents double-counting on re-polls, `git commit --amend`, and `git rebase`).
 - **`diagnostics` (`SaveDiagnostics`):**
   - `dropped_future_events` (`u64`): events skipped because `ts > now`.
   - `dropped_pre_creation_events` (`u64`): events skipped because `ts < created_at`.

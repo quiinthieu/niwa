@@ -19,6 +19,9 @@ use tg_render::{
     ColorPreference, ColorTier, RenderOptions, RenderedFrame, SpriteBank, Viewport,
 };
 use tg_signals::evaluator::evaluate_work_events;
+use tg_signals::git::{
+    poll_and_record_git_commits, GitLogRunner, GitPollMode, ProcessGitLogRunner,
+};
 use tg_signals::EventSpool;
 use tg_store::config::{AppConfig, ColorSetting, ConfigStore};
 use tg_store::error::StoreError;
@@ -196,11 +199,30 @@ pub struct GardenSession {
 }
 
 impl GardenSession {
-    /// Runs `lock → load (or init starter garden) → catch_up(now) → save → snapshot` (PLAN §3.4).
+    /// Runs `lock → load (or init starter garden) → poll git → catch_up(now) → save → snapshot`
+    /// (`PLAN.md` §3.4 & §10 T11).
     pub fn open(
         paths: NiwaPaths,
         clock: &dyn Clock,
         seed_override: Option<u64>,
+    ) -> Result<Self, StoreError> {
+        Self::open_with_git(
+            paths,
+            clock,
+            seed_override,
+            GitPollMode::OnCatchUp,
+            &ProcessGitLogRunner::default(),
+        )
+    }
+
+    /// Variant of [`Self::open`] accepting an explicit [`GitPollMode`] and [`GitLogRunner`]
+    /// (used by `niwa daemon` to enforce the 5-minute periodic git poll throttle).
+    pub fn open_with_git(
+        paths: NiwaPaths,
+        clock: &dyn Clock,
+        seed_override: Option<u64>,
+        git_poll_mode: GitPollMode,
+        git_runner: &dyn GitLogRunner,
     ) -> Result<Self, StoreError> {
         let config = ConfigStore::new(paths.clone()).load()?;
         let balance = Balance::load_default();
@@ -221,6 +243,15 @@ impl GardenSession {
                 Some(outcome) => {
                     let mut save = outcome.save;
                     let mut garden = save.to_garden();
+                    let _ = poll_and_record_git_commits(
+                        &config,
+                        &spool,
+                        &mut save.git_poll,
+                        Some(garden.created_at()),
+                        now,
+                        git_poll_mode,
+                        git_runner,
+                    )?;
                     let spool_read = spool.read()?;
                     save.diagnostics.corrupt_spool_lines = save
                         .diagnostics
@@ -275,6 +306,15 @@ impl GardenSession {
                     let mut garden = Garden::from_balance(seed, &balance, now);
                     let mut save = GardenSave::from_garden(&garden);
                     seed_starter_inventory(&mut save, &catalog, now);
+                    let _ = poll_and_record_git_commits(
+                        &config,
+                        &spool,
+                        &mut save.git_poll,
+                        Some(garden.created_at()),
+                        now,
+                        git_poll_mode,
+                        git_runner,
+                    )?;
 
                     let spool_read = spool.read()?;
                     let has_spool_data =
@@ -431,6 +471,15 @@ impl GardenSession {
         let store = GardenStore::new(self.paths.clone());
         let _lock = store.lock()?;
         let spool = EventSpool::new(self.paths.clone());
+        let _ = poll_and_record_git_commits(
+            &self.config,
+            &spool,
+            &mut self.save.git_poll,
+            Some(self.garden.created_at()),
+            now,
+            GitPollMode::PeriodicInterval,
+            &ProcessGitLogRunner::default(),
+        )?;
         let spool_read = spool.read()?;
         self.save.diagnostics.corrupt_spool_lines = self
             .save

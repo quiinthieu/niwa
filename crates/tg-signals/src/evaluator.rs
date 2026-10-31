@@ -97,13 +97,17 @@ pub fn evaluate_work_events(
             // Pass through with 0 water so `Garden::catch_up_with_events` records
             // `dropped_future_events` / `dropped_pre_creation_events` without charging caps.
             catch_up_events.push(CatchUpEvent::with_water(ts, false, 0));
-        } else if ts < garden_last_tick_at {
-            // Already-completed historical tick prior to `garden_last_tick_at`; compact out.
         } else if total_ticks == 0 || ts > new_last_tick_at {
-            // Falls inside the currently incomplete `< 60 s` tick window; retain until tick completes.
+            // Falls inside the currently incomplete `< 60 s` tick window (or arrived while
+            // `< 60 s` elapsed since `garden_last_tick_at`); retain until a tick completes.
             retained_spool_events.push(ev);
         } else {
-            // `garden_last_tick_at <= ts <= new_last_tick_at` with `total_ticks >= 1`.
+            // `garden_created_at <= ts <= new_last_tick_at` with `total_ticks >= 1`.
+            // Previously applied events were already removed by `EventSpool::compact`, so any
+            // consented event still present with `ts < garden_last_tick_at` (e.g. a commit
+            // discovered on a 5-minute periodic git poll after 60-second daemon ticks advanced
+            // `garden_last_tick_at`) is evaluated against its true `ts` UTC hour/day water
+            // budget and applied at `effective_ts = ts.max(garden_last_tick_at + 1)`.
             applicable.push((idx, ev));
         }
     }

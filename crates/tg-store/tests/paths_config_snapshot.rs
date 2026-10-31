@@ -329,3 +329,61 @@ fn snapshot_writer_is_atomic_golden_and_tolerates_unknown_fields() {
         Err(StoreError::UnsupportedFutureSchema { found: 99, .. })
     ));
 }
+
+#[test]
+fn git_config_normalizes_repos_and_validates_author_email() {
+    let env = TestEnv::new();
+    let store = ConfigStore::new(env.paths().clone());
+    let mut cfg = AppConfig::default();
+
+    // Strips angle brackets/whitespace and rejects malformed emails.
+    cfg.set_key("git.author_email", "  <Alice@Example.test>  ")
+        .unwrap();
+    assert_eq!(
+        cfg.get_key("git.author_email").unwrap(),
+        "Alice@Example.test"
+    );
+
+    assert!(matches!(
+        cfg.set_key("git.author_email", "not-an-email"),
+        Err(StoreError::InvalidConfigValue { .. })
+    ));
+    assert!(matches!(
+        cfg.set_key("git.author_email", "alice@"),
+        Err(StoreError::InvalidConfigValue { .. })
+    ));
+    assert!(matches!(
+        cfg.set_key("git.author_email", "@example.test"),
+        Err(StoreError::InvalidConfigValue { .. })
+    ));
+    assert!(matches!(
+        cfg.set_key("git.author_email", "alice bob@example.test"),
+        Err(StoreError::InvalidConfigValue { .. })
+    ));
+
+    // `"none"` or `""` clears `git.author_email`.
+    cfg.set_key("git.author_email", "none").unwrap();
+    assert_eq!(cfg.git.author_email, None);
+    assert_eq!(cfg.get_key("git.author_email").unwrap(), "");
+
+    // Deduplicates repeated repo paths while preserving order, and `"none"` clears `git.repos`.
+    cfg.set_key("git.repos", "/tmp/repo_a, /tmp/repo_b, /tmp/repo_a")
+        .unwrap();
+    assert_eq!(
+        cfg.git.repos,
+        vec![PathBuf::from("/tmp/repo_a"), PathBuf::from("/tmp/repo_b")]
+    );
+    cfg.set_key("git.repos", "none").unwrap();
+    assert!(cfg.git.repos.is_empty());
+
+    // Direct TOML edit with malformed `author_email` is caught on `store.load()`.
+    fs::write(
+        env.paths().config_file(),
+        "[git]\nauthor_email = \"missing-at-symbol\"\n",
+    )
+    .unwrap();
+    assert!(matches!(
+        store.load(),
+        Err(StoreError::InvalidConfigValue { .. })
+    ));
+}
