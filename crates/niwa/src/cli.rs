@@ -5,6 +5,7 @@ use crate::daemon::{
 };
 use crate::hook::{run_hook_with_writer, HookArgs};
 use crate::ingest::{run_ingest, IngestArgs};
+use crate::prompt::{run_prompt_with_writer, PromptArgs};
 use crate::runtime::{format_status_human, resolve_color_tier, GardenSession};
 use crate::tui::ui::run_interactive_tui;
 use clap::{Args, Parser, Subcommand};
@@ -60,6 +61,8 @@ pub enum Commands {
     Daemon(DaemonArgs),
     /// Print `zsh`, `bash`, or `fish` hook snippets or install/uninstall the marked rc block.
     Hook(HookArgs),
+    /// Print the compact garden stage glyph or emoji for shell prompts, `tmux`, and Starship.
+    Prompt(PromptArgs),
     /// Delete persisted garden state (and `--all` to also remove `config.toml` and `events.jsonl`).
     Reset(ResetArgs),
     /// Internal fast-path event appender invoked asynchronously by shell hooks.
@@ -203,6 +206,10 @@ pub fn execute_with(cli: Cli, paths: NiwaPaths, clock: &dyn Clock) -> anyhow::Re
         Some(Commands::Hook(args)) => {
             let mut stdout = io::stdout().lock();
             run_hook_with_writer(&paths, args, &mut stdout)
+        }
+        Some(Commands::Prompt(args)) => {
+            let mut stdout = io::stdout().lock();
+            run_prompt_with_writer(&paths, clock, &args, &mut stdout)
         }
         Some(Commands::Reset(args)) => run_reset(paths, &args),
         Some(Commands::Ingest(args)) => {

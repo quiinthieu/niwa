@@ -13,7 +13,7 @@ All game simulation rules live exclusively in Rust (`tg-core`). Consumers treat 
 
 | Platform | Resolved Path (`NiwaPaths::snapshot_file()`) |
 |---|---|
-| `NIWA_HOME` override (tests / custom roots) | `$NIWA_HOME/data/snapshot.json` |
+| `NIWA_HOME` override (tests / custom roots) | `$NIWA_HOME/snapshot.json` |
 | macOS | `~/Library/Application Support/Niwa/snapshot.json` |
 | Linux / WSL (XDG) | `${XDG_STATE_HOME:-~/.local/state}/niwa/snapshot.json` |
 

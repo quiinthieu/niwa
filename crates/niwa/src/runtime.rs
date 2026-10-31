@@ -25,6 +25,7 @@ use tg_signals::git::{
 use tg_signals::EventSpool;
 use tg_store::config::{AppConfig, ColorSetting, ConfigStore};
 use tg_store::error::StoreError;
+use tg_store::lock::GardenLock;
 use tg_store::paths::NiwaPaths;
 use tg_store::save::{AlmanacEntry, GardenSave, GardenStore, RecoveryNotice, SaveDiagnostics};
 use tg_store::snapshot::{write_snapshot, Snapshot};
@@ -224,6 +225,50 @@ impl GardenSession {
         git_poll_mode: GitPollMode,
         git_runner: &dyn GitLogRunner,
     ) -> Result<Self, StoreError> {
+        let lock = GardenStore::new(paths.clone()).lock()?;
+        let (session, _) = Self::open_with_acquired_lock(
+            paths,
+            clock,
+            seed_override,
+            git_poll_mode,
+            git_runner,
+            lock,
+        )?;
+        Ok(session)
+    }
+
+    /// Attempts a non-blocking snapshot refresh (`GardenLock::try_acquire` → `load` →
+    /// `catch_up(now, spool)` → `save` → `snapshot`) when `niwa prompt` encounters a missing
+    /// or `>= 60 s` stale `snapshot.json` (`PLAN.md` §3.4 & §10 T13).
+    ///
+    /// Returns `Ok(None)` immediately without blocking or loading embedded simulation catalogs
+    /// if another process (such as an open interactive `niwa` TUI) currently holds `garden.lock`.
+    pub fn try_refresh_snapshot_for_prompt(
+        paths: NiwaPaths,
+        clock: &dyn Clock,
+    ) -> Result<Option<Snapshot>, StoreError> {
+        let Some(lock) = GardenLock::try_acquire(&paths)? else {
+            return Ok(None);
+        };
+        let (_, snap) = Self::open_with_acquired_lock(
+            paths,
+            clock,
+            None,
+            GitPollMode::PeriodicInterval,
+            &ProcessGitLogRunner::default(),
+            lock,
+        )?;
+        Ok(Some(snap))
+    }
+
+    fn open_with_acquired_lock(
+        paths: NiwaPaths,
+        clock: &dyn Clock,
+        seed_override: Option<u64>,
+        git_poll_mode: GitPollMode,
+        git_runner: &dyn GitLogRunner,
+        lock: GardenLock,
+    ) -> Result<(Self, Snapshot), StoreError> {
         let config = ConfigStore::new(paths.clone()).load()?;
         let balance = Balance::load_default();
         let catalog = SpeciesCatalog::load_default();
@@ -231,8 +276,8 @@ impl GardenSession {
         let store = GardenStore::new(paths.clone());
         let now = clock.now();
 
-        let (save, garden, last_away, recovery_notice) = {
-            let _lock = store.lock()?;
+        let (save, garden, last_away, recovery_notice, snap) = {
+            let _lock = lock;
             let spool = EventSpool::new(paths.clone());
             let catch_up_opts = CatchUpOptions {
                 season_mode: config.season_mode,
@@ -299,7 +344,7 @@ impl GardenSession {
                         .summary
                         .has_activity_to_report()
                         .then_some(catch_up_outcome.summary);
-                    (save, garden, away, outcome.notice)
+                    (save, garden, away, outcome.notice, snap)
                 }
                 None => {
                     let seed = seed_override.unwrap_or_else(|| derive_initial_seed(now));
@@ -364,23 +409,26 @@ impl GardenSession {
                     let snap = build_snapshot(&garden, &config, &catalog, &sprites, season, now);
                     write_snapshot(&paths, &snap)?;
 
-                    (save, garden, None, None)
+                    (save, garden, None, None, snap)
                 }
             }
         };
 
-        Ok(Self {
-            paths,
-            config,
-            balance,
-            catalog,
-            sprites,
-            save,
-            garden,
-            last_away,
-            recovery_notice,
-            action_nonce: 0,
-        })
+        Ok((
+            Self {
+                paths,
+                config,
+                balance,
+                catalog,
+                sprites,
+                save,
+                garden,
+                last_away,
+                recovery_notice,
+                action_nonce: 0,
+            },
+            snap,
+        ))
     }
 
     #[must_use]
