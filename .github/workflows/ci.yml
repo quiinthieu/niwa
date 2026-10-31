@@ -55,12 +55,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y zsh fish
 
-      - name: Install fish for hook integration tests (macOS)
+      - name: Install fish and xcodegen (macOS)
         if: runner.os == 'macOS'
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
-        run: brew install fish
+        run: |
+          brew install fish
+          command -v xcodegen >/dev/null 2>&1 || brew install xcodegen
 
       - name: Run workspace tests
         run: cargo test --workspace
@@ -73,3 +75,9 @@ jobs:
 
       - name: Run tg-core purity lint
         run: ./scripts/lint-core-purity.sh
+
+      - name: Build and test macOS menu bar app
+        if: runner.os == 'macOS'
+        run: |
+          xcodegen generate --spec macos/Project.yml --project macos
+          xcodebuild -project macos/TerminalGarden.xcodeproj -scheme TerminalGarden test
