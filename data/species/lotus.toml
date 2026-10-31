@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Summer / Rare.
+id = "lotus"
+display_name = "Pond Lotus"
+rarity = "rare"
+gp_per_stage = [65_000, 180_000, 340_000, 500_000]
+growth_multiplier = 0.95
+preferred_seasons = ["summer"]
+seasonal_sprout_only = false
+color_hint = "pink"
+almanac_flavour = "Broad water-beaded pads lifting a serene lantern blossom above a shallow ceramic bowl."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ─ "
+young = "╭─╮"
+mature = "╭┴╮"
+blooming = "╰▓╯"
+
+[sprites.ascii]
+seed = " . "
+sprout = " _ "
+young = "(_)"
+mature = "(_|)"
+blooming = "\\@/"

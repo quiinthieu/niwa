@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Autumn / Uncommon.
+id = "marigold"
+display_name = "Copper Marigold"
+rarity = "uncommon"
+gp_per_stage = [46_000, 138_000, 255_000, 395_000]
+growth_multiplier = 1.0
+preferred_seasons = ["autumn"]
+seasonal_sprout_only = false
+color_hint = "amber"
+almanac_flavour = "Ruffled copper-orange pom-poms holding onto autumn's last golden light."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╵ "
+young = "├│┤"
+mature = "╭┼╮"
+blooming = "▒█▒"
+
+[sprites.ascii]
+seed = " . "
+sprout = " i "
+young = "-|-"
+mature = "(+)"
+blooming = "#O#"

@@ -1,0 +1,8 @@
+---
+source: crates/tg-core/tests/species_and_drops.rs
+expression: "lines.join(\"\\n\")"
+---
+spring: moss(common), daisy(common), chamomile(common), daisy(common), daisy(common), clover(common), snowdrop(uncommon), daisy(common), red_maple(rare), clover(common), clover(common), clover(common)
+summer: clover(common), clover(common), chamomile(common), chamomile(common), lavender(uncommon), clover(common), daisy(common), chamomile(common), moss(common), chamomile(common), lavender(uncommon), daisy(common)
+autumn: moss(common), chamomile(common), clover(common), marigold(uncommon), red_maple(rare), chamomile(common), chamomile(common), moss(common), moss(common), snowdrop(uncommon), camellia(rare), clover(common)
+winter: daisy(common), red_maple(rare), snowdrop(uncommon), moss(common), clover(common), daisy(common), chamomile(common), snowdrop(uncommon), moss(common), moss(common), clover(common), daisy(common)

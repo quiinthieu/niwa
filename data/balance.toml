@@ -21,3 +21,23 @@ default_season_multiplier = 1.0
 [dormancy]
 # Days without any active tick before plants pause in dormancy (tunable; PLAN §4.1 default = 7).
 dormant_after_days = 7
+
+[seasons]
+# Length of one season in days when season_mode = "garden" (tunable; PLAN §4.2).
+season_length_days = 7
+# Growth multiplier when current season is in a species' preferred_seasons (tunable; PLAN §4.2).
+preferred_season_multiplier = 1.25
+# Growth multiplier when current season is outside a species' preferred_seasons (tunable; PLAN §4.2).
+off_season_multiplier = 0.85
+
+[drops]
+# Relative seed drop weights by rarity tier when harvesting a blooming plant (tunable; PLAN §4.2).
+common_weight = 600
+uncommon_weight = 270
+rare_weight = 100
+mythic_weight = 30
+# Seasonal weight multipliers applied per candidate species in the drop table (tunable; PLAN §4.2).
+in_season_weight_multiplier = 3
+off_season_weight_multiplier = 1
+# Number of seeds awarded per blooming harvest (tunable).
+seeds_per_harvest = 1

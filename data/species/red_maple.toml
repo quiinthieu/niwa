@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Autumn / Rare.
+id = "red_maple"
+display_name = "Dwarf Red Maple"
+rarity = "rare"
+gp_per_stage = [62_000, 175_000, 330_000, 490_000]
+growth_multiplier = 0.95
+preferred_seasons = ["autumn"]
+seasonal_sprout_only = false
+color_hint = "crimson"
+almanac_flavour = "Star-cut scarlet leaves balanced on slender branches in a stoneware dish."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = " ┼ "
+mature = "╭┬╮"
+blooming = "▓┴▓"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ; "
+young = " + "
+mature = "/T\\"
+blooming = "*|*"

@@ -1,7 +1,8 @@
 use rand::RngCore;
 use std::collections::BTreeMap;
 use tg_core::balance::{
-    multiplier_to_bp, Balance, BalanceError, GrowthProfile, MULTIPLIER_BP_SCALE,
+    multiplier_to_bp, Balance, BalanceError, DropBalance, GrowthProfile, SeasonBalance,
+    MULTIPLIER_BP_SCALE,
 };
 use tg_core::clock::{Clock, FakeClock, Timestamp, TICKS_PER_DAY, TICK_SECS};
 use tg_core::model::{SimError, Stage};
@@ -17,6 +18,8 @@ fn small_balance(thresholds: [u64; 4], dormant_after_days: u32) -> Balance {
             .expect("valid test growth profile"),
         default_season_multiplier_bp: MULTIPLIER_BP_SCALE,
         dormant_after_days,
+        seasons: SeasonBalance::default(),
+        drops: DropBalance::default(),
     }
 }
 

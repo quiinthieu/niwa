@@ -4,6 +4,8 @@ use crate::balance::{Balance, GrowthProfile};
 use crate::clock::{Clock, Timestamp};
 use crate::model::{Plant, Plot, SimError, Stage};
 use crate::rng::{rng_for_stream, rng_for_tick, GardenRng};
+use crate::season::Season;
+use crate::species::SpeciesCatalog;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -346,5 +348,90 @@ impl Garden {
             outcomes.push(self.tick_with_profiles(input, balance, resolver));
         }
         outcomes
+    }
+
+    pub fn tick_with_catalog(
+        &mut self,
+        input: TickInput,
+        season: Season,
+        balance: &Balance,
+        catalog: &SpeciesCatalog,
+    ) -> TickOutcome {
+        let current_tick_index = self.tick_index;
+        let tick_roll = self.rng_for_current_tick().next_u64();
+        let next_timestamp = self.last_tick_at.add_ticks(1);
+
+        let dormant_after_ticks = balance.dormant_after_ticks();
+        let paused_by_dormancy = if input.active {
+            self.inactive_ticks = 0;
+            self.dormant = false;
+            false
+        } else if self.inactive_ticks >= dormant_after_ticks {
+            self.dormant = true;
+            self.inactive_ticks = self.inactive_ticks.saturating_add(1);
+            true
+        } else {
+            self.inactive_ticks = self.inactive_ticks.saturating_add(1);
+            self.dormant = self.inactive_ticks >= dormant_after_ticks;
+            false
+        };
+
+        let mut transitions = Vec::new();
+        if !paused_by_dormancy {
+            for (plot_index, plot) in self.plots.iter_mut().enumerate() {
+                if let Some(plant) = plot.plant_mut() {
+                    let (profile, season_bp, can_grow) = match catalog.get(&plant.species_id) {
+                        Some(species) => {
+                            let sprout_allowed =
+                                plant.stage != Stage::Seed || species.can_sprout_in(season);
+                            let s_bp = input.season_multiplier_bp.unwrap_or_else(|| {
+                                balance
+                                    .seasons
+                                    .multiplier_bp_for(species.prefers_season(season))
+                            });
+                            (species.growth_profile(), s_bp, sprout_allowed)
+                        }
+                        None => {
+                            let s_bp = input
+                                .season_multiplier_bp
+                                .unwrap_or(balance.default_season_multiplier_bp);
+                            (balance.default_profile.clone(), s_bp, true)
+                        }
+                    };
+
+                    if !can_grow {
+                        continue;
+                    }
+
+                    let delta_gp = balance.compute_tick_gp(
+                        input.active,
+                        input.water_gp,
+                        profile.species_multiplier_bp,
+                        season_bp,
+                    );
+                    let stream = (plot_index as u64).saturating_add(1);
+                    let mut plot_rng = rng_for_stream(self.seed, current_tick_index, stream);
+                    let plot_transitions = plant.advance_gp(
+                        plot_index,
+                        delta_gp,
+                        &profile.stage_thresholds,
+                        next_timestamp,
+                        &mut plot_rng,
+                    );
+                    transitions.extend(plot_transitions);
+                }
+            }
+        }
+
+        self.tick_index = current_tick_index.saturating_add(1);
+        self.last_tick_at = next_timestamp;
+
+        TickOutcome {
+            tick_index: current_tick_index,
+            timestamp: next_timestamp,
+            dormant: self.dormant,
+            tick_roll,
+            transitions,
+        }
     }
 }

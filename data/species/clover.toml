@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Spring / Common.
+id = "clover"
+display_name = "White Clover"
+rarity = "common"
+gp_per_stage = [36_000, 110_000, 210_000, 320_000]
+growth_multiplier = 1.05
+preferred_seasons = ["spring", "summer"]
+seasonal_sprout_only = false
+color_hint = "green"
+almanac_flavour = "Soft three-leaf mats that quietly fill the corners between stepping stones."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = "╭┼╮"
+mature = "╭┴╮"
+blooming = "░┼░"
+
+[sprites.ascii]
+seed = " . "
+sprout = " , "
+young = "o+o"
+mature = "o|o"
+blooming = "*+*"

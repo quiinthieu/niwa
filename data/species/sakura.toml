@@ -1,0 +1,24 @@
+# Tunable species definition (PLAN §4.2): Spring / Mythic.
+id = "sakura"
+display_name = "Sakura Bonsai"
+rarity = "mythic"
+gp_per_stage = [80_000, 220_000, 420_000, 640_000]
+growth_multiplier = 0.9
+preferred_seasons = ["spring"]
+seasonal_sprout_only = true
+color_hint = "pink"
+almanac_flavour = "A miniature twisted trunk crowned with blush petals that drift across quiet spring mornings."
+
+[sprites.unicode]
+seed = " · "
+sprout = " ╷ "
+young = " ┼ "
+mature = "╭┴╮"
+blooming = "▓┬▓"
+
+[sprites.ascii]
+seed = " . "
+sprout = " ; "
+young = " + "
+mature = "/|\\"
+blooming = "#T#"

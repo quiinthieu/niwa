@@ -2,6 +2,7 @@
 
 use crate::clock::TICKS_PER_DAY;
 use crate::model::Stage;
+use crate::species::Rarity;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -17,6 +18,12 @@ pub enum BalanceError {
     ParseToml(String),
     #[error("default_plots must be at least 1")]
     ZeroDefaultPlots,
+    #[error("season_length_days must be at least 1")]
+    ZeroSeasonLengthDays,
+    #[error("seeds_per_harvest must be at least 1")]
+    ZeroSeedsPerHarvest,
+    #[error("drop table weights must include at least one positive rarity and season weight")]
+    ZeroDropWeights,
     #[error("stage threshold at index {stage_index} must be >= 1, got {value}")]
     InvalidStageThreshold { stage_index: usize, value: u64 },
     #[error(
@@ -31,6 +38,10 @@ struct RawBalance {
     garden: RawGardenSection,
     growth: RawGrowthSection,
     dormancy: RawDormancySection,
+    #[serde(default)]
+    seasons: RawSeasonsSection,
+    #[serde(default)]
+    drops: RawDropsSection,
 }
 
 #[derive(Deserialize)]
@@ -53,6 +64,126 @@ struct RawGrowthSection {
 #[serde(deny_unknown_fields)]
 struct RawDormancySection {
     dormant_after_days: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSeasonsSection {
+    season_length_days: u32,
+    preferred_season_multiplier: f64,
+    off_season_multiplier: f64,
+}
+
+impl Default for RawSeasonsSection {
+    fn default() -> Self {
+        Self {
+            season_length_days: 7,
+            preferred_season_multiplier: 1.25,
+            off_season_multiplier: 0.85,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawDropsSection {
+    common_weight: u64,
+    uncommon_weight: u64,
+    rare_weight: u64,
+    mythic_weight: u64,
+    in_season_weight_multiplier: u64,
+    off_season_weight_multiplier: u64,
+    seeds_per_harvest: usize,
+}
+
+impl Default for RawDropsSection {
+    fn default() -> Self {
+        Self {
+            common_weight: 600,
+            uncommon_weight: 270,
+            rare_weight: 100,
+            mythic_weight: 30,
+            in_season_weight_multiplier: 3,
+            off_season_weight_multiplier: 1,
+            seeds_per_harvest: 1,
+        }
+    }
+}
+
+/// Validated seasonal cycle length and growth multipliers (PLAN §4.2).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SeasonBalance {
+    pub season_length_days: u32,
+    pub preferred_season_multiplier_bp: u32,
+    pub off_season_multiplier_bp: u32,
+}
+
+impl SeasonBalance {
+    #[must_use]
+    pub const fn multiplier_bp_for(&self, in_preferred_season: bool) -> u32 {
+        if in_preferred_season {
+            self.preferred_season_multiplier_bp
+        } else {
+            self.off_season_multiplier_bp
+        }
+    }
+}
+
+impl Default for SeasonBalance {
+    fn default() -> Self {
+        Self {
+            season_length_days: 7,
+            preferred_season_multiplier_bp: 12_500,
+            off_season_multiplier_bp: 8_500,
+        }
+    }
+}
+
+/// Validated seed drop-table weights by rarity and season (PLAN §4.2).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DropBalance {
+    pub common_weight: u64,
+    pub uncommon_weight: u64,
+    pub rare_weight: u64,
+    pub mythic_weight: u64,
+    pub in_season_weight_multiplier: u64,
+    pub off_season_weight_multiplier: u64,
+    pub seeds_per_harvest: usize,
+}
+
+impl DropBalance {
+    #[must_use]
+    pub const fn rarity_weight(&self, rarity: Rarity) -> u64 {
+        match rarity {
+            Rarity::Common => self.common_weight,
+            Rarity::Uncommon => self.uncommon_weight,
+            Rarity::Rare => self.rare_weight,
+            Rarity::Mythic => self.mythic_weight,
+        }
+    }
+
+    #[must_use]
+    pub const fn season_weight_multiplier(&self, in_preferred_season: bool) -> u64 {
+        if in_preferred_season {
+            self.in_season_weight_multiplier
+        } else {
+            self.off_season_weight_multiplier
+        }
+    }
+}
+
+impl Default for DropBalance {
+    fn default() -> Self {
+        Self {
+            common_weight: 600,
+            uncommon_weight: 270,
+            rare_weight: 100,
+            mythic_weight: 30,
+            in_season_weight_multiplier: 3,
+            off_season_weight_multiplier: 1,
+            seeds_per_harvest: 1,
+        }
+    }
 }
 
 /// Converts a floating-point TOML multiplier into deterministic basis points (`10_000 == 1.0x`).
@@ -123,6 +254,8 @@ pub struct Balance {
     pub default_profile: GrowthProfile,
     pub default_season_multiplier_bp: u32,
     pub dormant_after_days: u32,
+    pub seasons: SeasonBalance,
+    pub drops: DropBalance,
 }
 
 impl Balance {
@@ -139,6 +272,26 @@ impl Balance {
         if parsed.garden.default_plots == 0 {
             return Err(BalanceError::ZeroDefaultPlots);
         }
+        if parsed.seasons.season_length_days == 0 {
+            return Err(BalanceError::ZeroSeasonLengthDays);
+        }
+        if parsed.drops.seeds_per_harvest == 0 {
+            return Err(BalanceError::ZeroSeedsPerHarvest);
+        }
+
+        let total_rarity_weight = parsed
+            .drops
+            .common_weight
+            .saturating_add(parsed.drops.uncommon_weight)
+            .saturating_add(parsed.drops.rare_weight)
+            .saturating_add(parsed.drops.mythic_weight);
+        let total_season_weight = parsed
+            .drops
+            .in_season_weight_multiplier
+            .saturating_add(parsed.drops.off_season_weight_multiplier);
+        if total_rarity_weight == 0 || total_season_weight == 0 {
+            return Err(BalanceError::ZeroDropWeights);
+        }
 
         let species_bp = multiplier_to_bp(
             "default_species_multiplier",
@@ -147,6 +300,14 @@ impl Balance {
         let season_bp = multiplier_to_bp(
             "default_season_multiplier",
             parsed.growth.default_season_multiplier,
+        )?;
+        let preferred_season_bp = multiplier_to_bp(
+            "preferred_season_multiplier",
+            parsed.seasons.preferred_season_multiplier,
+        )?;
+        let off_season_bp = multiplier_to_bp(
+            "off_season_multiplier",
+            parsed.seasons.off_season_multiplier,
         )?;
         let default_profile =
             GrowthProfile::new(parsed.growth.default_stage_thresholds, species_bp)?;
@@ -158,6 +319,20 @@ impl Balance {
             default_profile,
             default_season_multiplier_bp: season_bp,
             dormant_after_days: parsed.dormancy.dormant_after_days,
+            seasons: SeasonBalance {
+                season_length_days: parsed.seasons.season_length_days,
+                preferred_season_multiplier_bp: preferred_season_bp,
+                off_season_multiplier_bp: off_season_bp,
+            },
+            drops: DropBalance {
+                common_weight: parsed.drops.common_weight,
+                uncommon_weight: parsed.drops.uncommon_weight,
+                rare_weight: parsed.drops.rare_weight,
+                mythic_weight: parsed.drops.mythic_weight,
+                in_season_weight_multiplier: parsed.drops.in_season_weight_multiplier,
+                off_season_weight_multiplier: parsed.drops.off_season_weight_multiplier,
+                seeds_per_harvest: parsed.drops.seeds_per_harvest,
+            },
         })
     }
 
