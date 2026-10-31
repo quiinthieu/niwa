@@ -28,6 +28,8 @@ tg-signals = { path = "crates/tg-signals" }
 tg-store = { path = "crates/tg-store" }
 tg-render = { path = "crates/tg-render" }
 clap = { version = "4.5", features = ["derive"] }
+directories = "6.0"
+fs4 = { version = "0.13", default-features = false, features = ["sync"] }
 proptest = { version = "1.6", default-features = false, features = ["std"] }
 rand = { version = "0.9", default-features = false }
 rand_pcg = "0.9"

@@ -1,0 +1,37 @@
+---
+source: crates/tg-store/tests/save_recovery_and_migrations.rs
+expression: pretty
+---
+{
+  "schema_version": 1,
+  "seed": 108,
+  "plots": [
+    {
+      "plant": {
+        "species_id": "sun_moss",
+        "stage": "sprout",
+        "stage_gp": 15,
+        "total_gp": 75,
+        "planted_at": 1700000000,
+        "planted_tick": 0,
+        "bloomed_at": null,
+        "bloom_seed": null
+      }
+    },
+    {
+      "plant": null
+    }
+  ],
+  "inventory": {},
+  "almanac": {},
+  "last_tick_at": 1700000600,
+  "tick_index": 10,
+  "inactive_ticks": 0,
+  "dormant": false,
+  "diagnostics": {
+    "dropped_future_events": 0,
+    "dropped_pre_creation_events": 0,
+    "corrupt_spool_lines": 0,
+    "clock_skew_events": 0
+  }
+}
