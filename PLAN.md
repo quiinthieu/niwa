@@ -162,7 +162,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
 ### M0 Skeleton
 - [x] **T01 Workspace & tooling.** Cargo workspace with the §3.1 crates as stubs, `product.rs`, `rust-toolchain.toml`, `deny.toml`, `ci.yml` (macOS + Linux), `scripts/lint-privacy.sh`, `DependencyGraphTests`, rustfmt and clippy config.
   *AC:* CI is green on both OSes. `--version` uses `product.rs`. The privacy lint catches a planted `std::net` import.
-- [ ] **T02 Test harness & injection.** `Clock` trait (System/Fake), seeded `Rng` factory, `TestEnv` (temp `NIWA_HOME`), fixture loaders, insta setup.
+- [x] **T02 Test harness & injection.** `Clock` trait (System/Fake), seeded `Rng` factory, `TestEnv` (temp `NIWA_HOME`), fixture loaders, insta setup.
   *AC:* a lint shows `tg-core` has no `std::fs`, `SystemTime::now` or `std::env`. The sample tests pass 100× in a loop.
 
 ### M1 MVP: time-only garden in the terminal

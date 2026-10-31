@@ -1,0 +1,10 @@
+---
+source: crates/tg-core/tests/clock_and_rng.rs
+expression: trace
+---
+tick=0 ts=1700000000 roll=6578
+tick=1 ts=1700000060 roll=6558
+tick=2 ts=1700000120 roll=4326
+tick=3 ts=1700000180 roll=1956
+tick=4 ts=1700000240 roll=1289
+tick=5 ts=1700000300 roll=5403

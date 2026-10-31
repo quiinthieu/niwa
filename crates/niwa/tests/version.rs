@@ -1,16 +1,18 @@
+#[path = "../../../tests/support/mod.rs"]
+mod support;
+
 use assert_cmd::Command;
-use tempfile::TempDir;
+use support::TestEnv;
 use tg_core::product;
 
 #[test]
 fn version_flag_uses_product_constants() {
-    let temp_home = TempDir::new().expect("temp NIWA_HOME");
+    let env = TestEnv::new();
     let expected = format!("{} {}\n", product::CLI_BIN, product::VERSION);
 
     for flag in ["--version", "-V"] {
         let assert = Command::new(env!("CARGO_BIN_EXE_niwa"))
-            .env("NIWA_HOME", temp_home.path())
-            .env("HOME", temp_home.path())
+            .envs(env.env_vars())
             .arg(flag)
             .assert()
             .success();
