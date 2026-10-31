@@ -1,7 +1,8 @@
 use proptest::prelude::*;
 use std::collections::BTreeMap;
 use tg_core::balance::{
-    Balance, CatchUpBalance, DropBalance, GrowthProfile, SeasonBalance, MULTIPLIER_BP_SCALE,
+    Balance, CatchUpBalance, DropBalance, GrowthProfile, SeasonBalance, SignalBalance,
+    MULTIPLIER_BP_SCALE,
 };
 use tg_core::clock::Timestamp;
 use tg_core::sim::{Garden, TickInput};
@@ -77,6 +78,7 @@ proptest! {
             catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
+            signals: SignalBalance::default(),
         };
 
         let mut profiles = BTreeMap::new();
@@ -145,6 +147,7 @@ proptest! {
             catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
+            signals: SignalBalance::default(),
         };
 
         let total_ticks: u64 = chunks.iter().copied().sum();
@@ -182,6 +185,7 @@ proptest! {
             catch_up: CatchUpBalance::default(),
             seasons: SeasonBalance::default(),
             drops: DropBalance::default(),
+            signals: SignalBalance::default(),
         };
 
         let mut profiles = BTreeMap::new();

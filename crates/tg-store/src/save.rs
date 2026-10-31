@@ -40,6 +40,33 @@ pub struct SaveDiagnostics {
     pub clock_skew_events: u64,
 }
 
+/// Persisted hourly/daily water-cap and shell-spacing counters in `garden.json` (PLAN §4.1 & T09).
+///
+/// Stores only UTC hour/day bucket numbers, integer GP/event counts, and the last shell-event
+/// timestamp so spool compaction between runs never resets hourly or daily water caps.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WaterBudgetState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hour_bucket: Option<i64>,
+    #[serde(default)]
+    pub hour_water_gp: u64,
+    #[serde(default)]
+    pub hour_water_events: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub day_bucket: Option<i64>,
+    #[serde(default)]
+    pub day_water_gp: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_shell_ts: Option<Timestamp>,
+}
+
+impl WaterBudgetState {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 /// Versioned `garden.json` v1 persistence payload (PLAN §6).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GardenSave {
@@ -61,6 +88,8 @@ pub struct GardenSave {
     pub dormant: bool,
     #[serde(default)]
     pub diagnostics: SaveDiagnostics,
+    #[serde(default, skip_serializing_if = "WaterBudgetState::is_empty")]
+    pub water_budget: WaterBudgetState,
 }
 
 impl GardenSave {
@@ -78,6 +107,7 @@ impl GardenSave {
             inactive_ticks: garden.inactive_ticks(),
             dormant: garden.is_dormant(),
             diagnostics: SaveDiagnostics::default(),
+            water_budget: WaterBudgetState::default(),
         }
     }
 

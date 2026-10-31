@@ -4,9 +4,11 @@ use crate::atomic::atomic_write_bytes;
 use crate::error::StoreError;
 use crate::paths::NiwaPaths;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
+use std::str::FromStr;
 use tg_core::clock::Timestamp;
 use tg_core::season::{Hemisphere, SeasonMode};
 
@@ -63,11 +65,69 @@ impl PromptStyle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SignalKind {
     Activity,
     Git,
     Shell,
+}
+
+impl SignalKind {
+    pub const ALL: [Self; 3] = [Self::Activity, Self::Git, Self::Shell];
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Activity => "activity",
+            Self::Git => "git",
+            Self::Shell => "shell",
+        }
+    }
+}
+
+impl fmt::Display for SignalKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Error returned when parsing an opt-in [`SignalKind`] name on the CLI.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ParseSignalKindError {
+    AlwaysOnTimeSignal,
+    UnknownSignal(String),
+}
+
+impl fmt::Display for ParseSignalKindError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AlwaysOnTimeSignal => write!(
+                f,
+                "'time' is the always-on wall-clock baseline and cannot be enabled or disabled (opt-in signals: activity, git, shell)"
+            ),
+            Self::UnknownSignal(name) => write!(
+                f,
+                "unknown signal '{name}' (expected one of: activity, git, shell)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ParseSignalKindError {}
+
+impl FromStr for SignalKind {
+    type Err = ParseSignalKindError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim() {
+            "activity" => Ok(Self::Activity),
+            "git" => Ok(Self::Git),
+            "shell" => Ok(Self::Shell),
+            "time" => Err(ParseSignalKindError::AlwaysOnTimeSignal),
+            other => Err(ParseSignalKindError::UnknownSignal(other.to_string())),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

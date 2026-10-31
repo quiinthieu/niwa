@@ -10,3 +10,4 @@ pub mod migrate;
 pub mod paths;
 pub mod save;
 pub mod snapshot;
+pub mod spool;

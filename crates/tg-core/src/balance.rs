@@ -28,6 +28,12 @@ pub enum BalanceError {
     TailFactorExceedsOne,
     #[error("drop table weights must include at least one positive rarity and season weight")]
     ZeroDropWeights,
+    #[error("signals.diminishing_half_life_events must be at least 1")]
+    ZeroDiminishingHalfLife,
+    #[error("signals.hourly_water_cap_gp must be at least 1")]
+    ZeroWaterCap,
+    #[error("signals.daily_water_cap_gp must be >= signals.hourly_water_cap_gp")]
+    DailyCapBelowHourlyCap,
     #[error("stage threshold at index {stage_index} must be >= 1, got {value}")]
     InvalidStageThreshold { stage_index: usize, value: u64 },
     #[error(
@@ -48,6 +54,8 @@ struct RawBalance {
     seasons: RawSeasonsSection,
     #[serde(default)]
     drops: RawDropsSection,
+    #[serde(default)]
+    signals: RawSignalsSection,
 }
 
 #[derive(Deserialize)]
@@ -130,6 +138,37 @@ impl Default for RawDropsSection {
             in_season_weight_multiplier: 3,
             off_season_weight_multiplier: 1,
             seeds_per_harvest: 1,
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSignalsSection {
+    commit_water_gp: u64,
+    shell_instant_water_gp: u64,
+    shell_fast_water_gp: u64,
+    shell_medium_water_gp: u64,
+    shell_long_water_gp: u64,
+    shell_min_spacing_secs: u64,
+    diminishing_half_life_events: u64,
+    hourly_water_cap_gp: u64,
+    daily_water_cap_gp: u64,
+}
+
+impl Default for RawSignalsSection {
+    fn default() -> Self {
+        let defaults = SignalBalance::default();
+        Self {
+            commit_water_gp: defaults.commit_water_gp,
+            shell_instant_water_gp: defaults.shell_instant_water_gp,
+            shell_fast_water_gp: defaults.shell_fast_water_gp,
+            shell_medium_water_gp: defaults.shell_medium_water_gp,
+            shell_long_water_gp: defaults.shell_long_water_gp,
+            shell_min_spacing_secs: defaults.shell_min_spacing_secs,
+            diminishing_half_life_events: defaults.diminishing_half_life_events,
+            hourly_water_cap_gp: defaults.hourly_water_cap_gp,
+            daily_water_cap_gp: defaults.daily_water_cap_gp,
         }
     }
 }
@@ -235,6 +274,36 @@ impl Default for DropBalance {
     }
 }
 
+/// Validated work-signal water rewards, spacing, diminishing returns, and hourly/daily caps (PLAN §4.1 & T09).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignalBalance {
+    pub commit_water_gp: u64,
+    pub shell_instant_water_gp: u64,
+    pub shell_fast_water_gp: u64,
+    pub shell_medium_water_gp: u64,
+    pub shell_long_water_gp: u64,
+    pub shell_min_spacing_secs: u64,
+    pub diminishing_half_life_events: u64,
+    pub hourly_water_cap_gp: u64,
+    pub daily_water_cap_gp: u64,
+}
+
+impl Default for SignalBalance {
+    fn default() -> Self {
+        Self {
+            commit_water_gp: 450,
+            shell_instant_water_gp: 8,
+            shell_fast_water_gp: 40,
+            shell_medium_water_gp: 90,
+            shell_long_water_gp: 160,
+            shell_min_spacing_secs: 5,
+            diminishing_half_life_events: 10,
+            hourly_water_cap_gp: 1_200,
+            daily_water_cap_gp: 4_800,
+        }
+    }
+}
+
 /// Converts a floating-point TOML multiplier into deterministic basis points (`10_000 == 1.0x`).
 pub fn multiplier_to_bp(field: &'static str, multiplier: f64) -> Result<u32, BalanceError> {
     if !multiplier.is_finite() || multiplier < 0.0 {
@@ -306,6 +375,7 @@ pub struct Balance {
     pub catch_up: CatchUpBalance,
     pub seasons: SeasonBalance,
     pub drops: DropBalance,
+    pub signals: SignalBalance,
 }
 
 impl Balance {
@@ -349,6 +419,15 @@ impl Balance {
             .saturating_add(parsed.drops.off_season_weight_multiplier);
         if total_rarity_weight == 0 || total_season_weight == 0 {
             return Err(BalanceError::ZeroDropWeights);
+        }
+        if parsed.signals.diminishing_half_life_events == 0 {
+            return Err(BalanceError::ZeroDiminishingHalfLife);
+        }
+        if parsed.signals.hourly_water_cap_gp == 0 {
+            return Err(BalanceError::ZeroWaterCap);
+        }
+        if parsed.signals.daily_water_cap_gp < parsed.signals.hourly_water_cap_gp {
+            return Err(BalanceError::DailyCapBelowHourlyCap);
         }
 
         let species_bp = multiplier_to_bp(
@@ -395,6 +474,17 @@ impl Balance {
                 in_season_weight_multiplier: parsed.drops.in_season_weight_multiplier,
                 off_season_weight_multiplier: parsed.drops.off_season_weight_multiplier,
                 seeds_per_harvest: parsed.drops.seeds_per_harvest,
+            },
+            signals: SignalBalance {
+                commit_water_gp: parsed.signals.commit_water_gp,
+                shell_instant_water_gp: parsed.signals.shell_instant_water_gp,
+                shell_fast_water_gp: parsed.signals.shell_fast_water_gp,
+                shell_medium_water_gp: parsed.signals.shell_medium_water_gp,
+                shell_long_water_gp: parsed.signals.shell_long_water_gp,
+                shell_min_spacing_secs: parsed.signals.shell_min_spacing_secs,
+                diminishing_half_life_events: parsed.signals.diminishing_half_life_events,
+                hourly_water_cap_gp: parsed.signals.hourly_water_cap_gp,
+                daily_water_cap_gp: parsed.signals.daily_water_cap_gp,
             },
         })
     }
