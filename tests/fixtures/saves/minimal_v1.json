@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "plots": [],
+  "inventory": {},
+  "almanac": {},
+  "last_tick_at": 1700000000,
+  "diagnostics": {
+    "dropped_future_events": 0,
+    "dropped_pre_creation_events": 0,
+    "corrupt_spool_lines": 0
+  }
+}
