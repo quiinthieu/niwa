@@ -176,7 +176,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* a 30-day catch-up gives the same result in one batch as in daily batches. The bench test stays under the §7 target. The summary is golden.
 - [x] **T07 Renderer.** Unicode and ASCII sprite sets for every species and stage, color tiers + `NO_COLOR`, grid layout + compact list fallback, compact glyph.
   *AC:* goldens at 40×12, 80×24 and 120×40 for each sprite set and color tier. No line overflows the width.
-- [ ] **T08 TUI & CLI (MVP release).** `niwa` (ratatui): grid view, keyboard actions (plant, harvest, compost, move), almanac, help, quit. Plus `niwa peek`, `niwa status --json`, `niwa config`, `niwa reset`. The TUI counts as an active signal while open.
+- [x] **T08 TUI & CLI (MVP release).** `niwa` (ratatui): grid view, keyboard actions (plant, harvest, compost, move), almanac, help, quit. Plus `niwa peek`, `niwa status --json`, `niwa config`, `niwa reset`. The TUI counts as an active signal while open.
   *AC:* every subcommand has `assert_cmd` tests. A `TestBackend` script plants, fast-forwards and harvests. The fps cap and the idle drop to 0 fps hold. `v0.1.0` builds.
 
 ### M2 Work signals (opt-in)
