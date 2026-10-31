@@ -260,3 +260,52 @@ fn daemon_once_with_injected_idle_secs_records_activity_and_advances_snapshot() 
     );
     assert!(bad.is_err(), "negative --idle-secs must be rejected");
 }
+
+#[test]
+fn macos_product_xcconfig_mirrors_rust_product_constants() {
+    let xcconfig_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../macos/Config/Product.xcconfig");
+    let raw = std::fs::read_to_string(&xcconfig_path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", xcconfig_path.display()));
+
+    let mut pairs = std::collections::BTreeMap::new();
+    for line in raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") {
+            continue;
+        }
+        let (key, value) = trimmed
+            .split_once('=')
+            .unwrap_or_else(|| panic!("invalid Product.xcconfig line: {trimmed}"));
+        pairs.insert(key.trim().to_string(), value.trim().to_string());
+    }
+
+    assert_eq!(
+        pairs.get("NIWA_DISPLAY_NAME").map(String::as_str),
+        Some(tg_core::product::DISPLAY_NAME)
+    );
+    assert_eq!(
+        pairs.get("NIWA_CLI_BIN").map(String::as_str),
+        Some(tg_core::product::CLI_BIN)
+    );
+    assert_eq!(
+        pairs.get("NIWA_CLI_CRATE").map(String::as_str),
+        Some(tg_core::product::CLI_CRATE)
+    );
+    assert_eq!(
+        pairs.get("NIWA_HOMEBREW_FORMULA").map(String::as_str),
+        Some(tg_core::product::HOMEBREW_FORMULA)
+    );
+    assert_eq!(
+        pairs.get("NIWA_HOMEBREW_CASK").map(String::as_str),
+        Some(tg_core::product::HOMEBREW_CASK)
+    );
+    assert_eq!(
+        pairs.get("NIWA_BUNDLE_ID").map(String::as_str),
+        Some(tg_core::product::BUNDLE_ID)
+    );
+    assert_eq!(
+        pairs.get("NIWA_VERSION").map(String::as_str),
+        Some(tg_core::product::VERSION)
+    );
+}

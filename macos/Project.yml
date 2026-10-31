@@ -1,0 +1,54 @@
+name: TerminalGarden
+
+configs:
+  Debug: debug
+  Release: release
+
+configFiles:
+  Debug: Config/Product.xcconfig
+  Release: Config/Product.xcconfig
+
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  TerminalGarden:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/TerminalGarden
+      - Sources/App
+    settings:
+      base:
+        PRODUCT_NAME: "$(NIWA_DISPLAY_NAME)"
+        PRODUCT_BUNDLE_IDENTIFIER: "$(NIWA_BUNDLE_ID)"
+        MARKETING_VERSION: "$(NIWA_VERSION)"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: Config/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+    scheme:
+      testTargets:
+        - TerminalGardenTests
+
+  TerminalGardenTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Sources/TerminalGarden
+      - Tests/TerminalGardenTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(NIWA_BUNDLE_ID).tests"
+        MARKETING_VERSION: "$(NIWA_VERSION)"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: Config/Tests-Info.plist

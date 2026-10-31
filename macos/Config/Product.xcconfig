@@ -1,0 +1,11 @@
+// Single source of truth for macOS bundle product metadata (PLAN.md §0 & §8).
+// Mirrored from crates/tg-core/src/product.rs and verified in Rust integration tests.
+// Do not hardcode these product names anywhere else.
+
+NIWA_DISPLAY_NAME = Niwa
+NIWA_CLI_BIN = niwa
+NIWA_CLI_CRATE = niwa-garden
+NIWA_HOMEBREW_FORMULA = niwa
+NIWA_HOMEBREW_CASK = niwa-garden
+NIWA_BUNDLE_ID = io.github.quiinthieu.niwa
+NIWA_VERSION = 0.1.0

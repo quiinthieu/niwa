@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(NIWA_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(NIWA_VERSION)</string>
+	<key>NIWA_DISPLAY_NAME</key>
+	<string>$(NIWA_DISPLAY_NAME)</string>
+	<key>NIWA_CLI_BIN</key>
+	<string>$(NIWA_CLI_BIN)</string>
+	<key>NIWA_CLI_CRATE</key>
+	<string>$(NIWA_CLI_CRATE)</string>
+	<key>NIWA_HOMEBREW_FORMULA</key>
+	<string>$(NIWA_HOMEBREW_FORMULA)</string>
+	<key>NIWA_HOMEBREW_CASK</key>
+	<string>$(NIWA_HOMEBREW_CASK)</string>
+	<key>NIWA_BUNDLE_ID</key>
+	<string>$(NIWA_BUNDLE_ID)</string>
+	<key>NIWA_VERSION</key>
+	<string>$(NIWA_VERSION)</string>
+</dict>
+</plist>
