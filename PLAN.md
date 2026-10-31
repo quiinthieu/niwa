@@ -180,7 +180,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* every subcommand has `assert_cmd` tests. A `TestBackend` script plants, fast-forwards and harvests. The fps cap and the idle drop to 0 fps hold. `v0.1.0` builds.
 
 ### M2 Work signals (opt-in)
-- [ ] **T09 Signal framework & consent.** `WorkEvent`, spool format, `niwa signals list|enable|disable [--purge]`, consent records, per-hour and per-day caps with diminishing returns, diagnostics.
+- [x] **T09 Signal framework & consent.** `WorkEvent`, spool format, `niwa signals list|enable|disable [--purge]`, consent records, per-hour and per-day caps with diminishing returns, diagnostics.
   *AC:* nothing is collected before `enable` (test). `--purge` deletes events. The spam property test passes. `docs/privacy.md` lists exactly what each signal stores.
 - [ ] **T10 Activity signal + daemon.** `niwa daemon` (60 s loop), macOS idle time (an ADR decides between a Rust binding and the Swift app writing `activity` events), Linux best effort, `niwa daemon install|uninstall` for the launchd/systemd user units *(verify paths)*.
   *AC:* with the fake idle source, active ticks get the sun bonus. Install/uninstall round-trips in a temp home. The daemon skips its wake when no signal is enabled.

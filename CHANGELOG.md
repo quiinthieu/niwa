@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **T09 Signal framework & consent:** Privacy-safe `Copy` `WorkEvent` JSONL schema (`activity`, `git_commit`, `shell` with `deny_unknown_fields`) and lock-aware `EventSpool` (`append`, corrupt-line-skipping `read`, concurrent-tail-preserving `compact`, and `purge_signal`) in `crates/tg-store/src/spool.rs`.
+- Tunable `[signals]` water rewards, shell minimum spacing, diminishing-returns half-life, and hourly/daily water caps in `data/balance.toml` (`SignalBalance` in `crates/tg-core/src/balance.rs`) plus persisted `WaterBudgetState` in `crates/tg-store/src/save.rs`.
+- Shared consent disclosures in `data/consent.toml` (`ConsentCatalog`), opt-in collection gate (`is_signal_enabled`, `is_event_consented`, `record_if_consented`), and pure diminishing-returns/cap evaluator (`evaluate_work_events`) in `crates/tg-signals/src/{consent.rs,evaluator.rs}`.
+- `niwa signals [list]`, `niwa signals enable <name> [--yes]`, and `niwa signals disable <name> [--purge]` CLI subcommands (`crates/niwa/src/cli.rs`), wired end-to-end into `GardenSession::open` and `GardenSession::advance_open_tui_ticks` (`crates/niwa/src/runtime.rs`) with diagnostic counter updates and spool compaction.
+- Signal storage and local-only privacy specification in `docs/privacy.md`, verified by `proptest` spam/batching suites, `true`-loop vs honest-use checks, and CLI integration tests (`crates/tg-store/tests/spool_and_purge.rs`, `crates/tg-signals/tests/consent_and_caps.rs`, `crates/niwa/tests/signals_cli.rs`).
+
 ## [0.1.0] - 2026-10-31
 
 ### Added
