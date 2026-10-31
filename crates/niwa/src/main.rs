@@ -1,15 +1,14 @@
 use clap::Parser;
-use tg_core::product;
+use niwa_garden::cli::{execute, Cli};
+use std::process::ExitCode;
 
-#[derive(Parser, Debug)]
-#[command(
-    name = product::CLI_BIN,
-    bin_name = product::CLI_BIN,
-    version = product::VERSION,
-    about = "A cozy idle garden for your terminal and menu bar"
-)]
-struct Cli {}
-
-fn main() {
-    let _cli = Cli::parse();
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+    match execute(cli) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
 }

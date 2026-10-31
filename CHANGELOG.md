@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-31
+
 ### Added
 - **T01 Workspace & tooling:** Cargo workspace with `tg-core`, `tg-signals`, `tg-store`, `tg-render`, and `niwa-garden` (`niwa` binary) crate stubs.
 - Single-source-of-truth product metadata in `crates/tg-core/src/product.rs`, wired into `niwa --version`.
@@ -32,3 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **T07 Renderer:** Multi-line Unicode and 7-bit ASCII stage sprite bank (`data/sprites/{unicode,ascii}/*.toml` for all 16 species across all 5 stages, validated by `SpriteBank` and `SpriteLoadError` in `crates/tg-render/src/sprites.rs`) plus shared `SpriteSet` in `crates/tg-core/src/species.rs`.
 - Terminal color tiers (`NoColor`, `Ansi16`, `Ansi256`, `Truecolor`), pure `NO_COLOR` / `--no-color` capability detection (`detect_color_tier` in `crates/tg-render/src/color.rs`), seasonal palettes (`SeasonPalette` and `plant_style` in `crates/tg-render/src/palette.rs`), and 1-cell compact glyph (`compact_glyph` in `crates/tg-render/src/glyph.rs`).
 - Wide-character-safe terminal display-width helpers (`crates/tg-render/src/width.rs`), responsive grid renderer (`>= 40x12`) with compact list fallback (`< 40x12`) and non-color state labels (`render_garden` and `render_compact_frame` in `crates/tg-render/src/layout.rs`), verified by `proptest` width invariants and 26 `insta` golden snapshots across `40x12`, `80x24`, `120x40`, and `32x10` (`crates/tg-render/tests/`).
+- **T08 TUI & CLI (MVP release):** Interactive `ratatui` + `crossterm` TUI (`niwa`) with responsive grid/compact views, plot cursor & non-color inspector bar, Seed Pouch planting (`p`), blooming harvest (`h`), plant move (`m`), same-rarity compost (`c`), Almanac screen (`a`, rarity labels and bloom dates without drop odds), Help overlay (`?`), "While you were away" offline catch-up modal, and active-signal `sun` ticks while open (`crates/niwa/src/tui/`).
+- Power-budget `FrameScheduler` (`crates/niwa/src/tui/scheduler.rs`) capping active redraws at `config.fps` (`1..=4` fps) and dropping to `0` fps after `30 s` without input or on `FocusLost`, sleeping until the next `60 s` simulation tick.
+- CLI subcommands (`crates/niwa/src/{cli.rs,runtime.rs}`) for `niwa peek` (`--width`, `--height`, `--ascii`), `niwa status [--json]`, `niwa config get|set|list|path`, and `niwa reset [--yes] [--all]` (via `GardenStore::reset` in `crates/tg-store/src/save.rs`), plus global `--no-color` support, verified by `assert_cmd` and `TestBackend` integration suites (`crates/niwa/tests/{cli_subcommands.rs,tui_flow.rs}`).

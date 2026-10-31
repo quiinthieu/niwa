@@ -1,0 +1,614 @@
+//! Pure event-driven TUI state machine (`TuiApp`) testable on `ratatui::backend::TestBackend`
+//! with an injected [`tg_core::clock::Clock`] (PLAN §4.2, §4.3, §7 & §10 T08).
+
+use crate::runtime::{ActionError, GardenSession};
+use crate::tui::scheduler::FrameScheduler;
+use crate::tui::ui::draw_ui;
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::backend::Backend;
+use ratatui::Terminal;
+use std::time::Duration;
+use tg_core::catch_up::AwaySummary;
+use tg_core::clock::Clock;
+use tg_core::species::Rarity;
+use tg_render::ColorTier;
+use tg_store::error::StoreError;
+
+/// Discriminant of the currently open modal overlay (if any).
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum OverlayKind {
+    AwaySummary,
+    SeedPicker,
+    ConfirmCompost,
+    Almanac,
+    Help,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum Overlay {
+    AwaySummary(AwaySummary),
+    SeedPicker { cursor: usize },
+    ConfirmCompost { plot_index: usize },
+    Almanac { cursor: usize },
+    Help,
+}
+
+impl Overlay {
+    const fn kind(&self) -> OverlayKind {
+        match self {
+            Self::AwaySummary(_) => OverlayKind::AwaySummary,
+            Self::SeedPicker { .. } => OverlayKind::SeedPicker,
+            Self::ConfirmCompost { .. } => OverlayKind::ConfirmCompost,
+            Self::Almanac { .. } => OverlayKind::Almanac,
+            Self::Help => OverlayKind::Help,
+        }
+    }
+}
+
+/// Entry displayed inside the Seed Pouch picker modal.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SeedChoice {
+    pub species_id: String,
+    pub display_name: String,
+    pub rarity: Rarity,
+    pub count: u32,
+    pub can_sprout_now: bool,
+}
+
+/// Interactive TUI controller owning the live [`GardenSession`] and [`FrameScheduler`].
+#[derive(Debug)]
+pub struct TuiApp {
+    session: GardenSession,
+    scheduler: FrameScheduler,
+    color_tier: ColorTier,
+    selected_plot: usize,
+    move_source: Option<usize>,
+    overlay: Option<Overlay>,
+    status_message: String,
+    should_quit: bool,
+}
+
+impl TuiApp {
+    /// Initializes a `TuiApp`, waking any dormant garden on open and queuing the
+    /// `"While you were away"` modal when offline progress occurred.
+    pub fn new(
+        mut session: GardenSession,
+        color_tier: ColorTier,
+        clock: &dyn Clock,
+    ) -> Result<Self, StoreError> {
+        let away = session.take_last_away();
+        session.wake_on_tui_open(clock.now())?;
+        let scheduler = FrameScheduler::new(session.config().fps);
+        let status_message = if let Some(notice) = session.recovery_notice() {
+            notice.to_string()
+        } else {
+            "Welcome to Niwa — [p]lant [h]arvest [m]ove [c]ompost [a]lmanac [?]help [q]uit"
+                .to_string()
+        };
+
+        Ok(Self {
+            session,
+            scheduler,
+            color_tier,
+            selected_plot: 0,
+            move_source: None,
+            overlay: away.map(Overlay::AwaySummary),
+            status_message,
+            should_quit: false,
+        })
+    }
+
+    #[must_use]
+    pub const fn session(&self) -> &GardenSession {
+        &self.session
+    }
+
+    #[must_use]
+    pub const fn scheduler(&self) -> &FrameScheduler {
+        &self.scheduler
+    }
+
+    #[must_use]
+    pub const fn color_tier(&self) -> ColorTier {
+        self.color_tier
+    }
+
+    #[must_use]
+    pub const fn selected_plot(&self) -> usize {
+        self.selected_plot
+    }
+
+    #[must_use]
+    pub const fn move_source(&self) -> Option<usize> {
+        self.move_source
+    }
+
+    #[must_use]
+    pub const fn is_moving(&self) -> bool {
+        self.move_source.is_some()
+    }
+
+    #[must_use]
+    pub fn overlay_kind(&self) -> Option<OverlayKind> {
+        self.overlay.as_ref().map(Overlay::kind)
+    }
+
+    #[must_use]
+    pub(crate) const fn overlay(&self) -> Option<&Overlay> {
+        self.overlay.as_ref()
+    }
+
+    #[must_use]
+    pub fn status_message(&self) -> &str {
+        &self.status_message
+    }
+
+    #[must_use]
+    pub const fn should_quit(&self) -> bool {
+        self.should_quit
+    }
+
+    /// Sorted list of seeds currently available in the player's seed pouch.
+    #[must_use]
+    pub fn available_seeds(&self) -> Vec<SeedChoice> {
+        let season = self.session.current_season();
+        self.session
+            .save()
+            .inventory
+            .iter()
+            .filter(|(_, &count)| count > 0)
+            .map(|(id, &count)| {
+                let (display_name, rarity, can_sprout_now) =
+                    self.session.catalog().get(id).map_or_else(
+                        || (id.clone(), Rarity::Common, true),
+                        |sp| (sp.display_name.clone(), sp.rarity, sp.can_sprout_in(season)),
+                    );
+                SeedChoice {
+                    species_id: id.clone(),
+                    display_name,
+                    rarity,
+                    count,
+                    can_sprout_now,
+                }
+            })
+            .collect()
+    }
+
+    /// Applies any 60-second active ticks elapsed on `clock` while the TUI is open
+    /// (PLAN §4.1 & §10 T08: "The TUI counts as an active signal while open").
+    pub fn sync_ticks(&mut self, clock: &dyn Clock) -> Result<usize, StoreError> {
+        self.session.advance_open_tui_ticks(clock.now())
+    }
+
+    /// Processes a terminal [`Event`] (keys, focus changes, resize) and updates [`FrameScheduler`].
+    pub fn handle_event(
+        &mut self,
+        event: &Event,
+        mono_now: Duration,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        match event {
+            Event::Key(key) => self.handle_key(*key, mono_now, clock)?,
+            Event::FocusLost => {
+                self.scheduler.on_focus_lost();
+            }
+            Event::FocusGained => {
+                self.scheduler.on_focus_gained(mono_now);
+            }
+            Event::Resize(_, _) | Event::Mouse(_) | Event::Paste(_) => {
+                self.scheduler.on_user_input(mono_now);
+            }
+        }
+        Ok(())
+    }
+
+    /// Processes a single keyboard event at `mono_now`.
+    pub fn handle_key(
+        &mut self,
+        key: KeyEvent,
+        mono_now: Duration,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        if key.kind == KeyEventKind::Release {
+            return Ok(());
+        }
+        self.scheduler.on_user_input(mono_now);
+
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && matches!(key.code, KeyCode::Char('c' | 'C'))
+        {
+            self.should_quit = true;
+            return Ok(());
+        }
+
+        if let Some(overlay) = self.overlay.clone() {
+            return self.handle_overlay_key(overlay, key, clock);
+        }
+
+        if let Some(source_plot) = self.move_source {
+            return self.handle_move_mode_key(source_plot, key, clock);
+        }
+
+        self.handle_grid_key(key, clock)
+    }
+
+    /// Executes one scheduled loop step: handles `event`, syncs elapsed 60 s open-TUI ticks,
+    /// and draws a frame ONLY if permitted by [`FrameScheduler::should_draw`].
+    pub fn step<B: Backend>(
+        &mut self,
+        event: Option<Event>,
+        mono_now: Duration,
+        clock: &dyn Clock,
+        terminal: &mut Terminal<B>,
+    ) -> anyhow::Result<bool>
+    where
+        B::Error: Send + Sync + 'static,
+    {
+        if let Some(ev) = event {
+            self.handle_event(&ev, mono_now, clock)?;
+        }
+        self.sync_ticks(clock)?;
+
+        if self.scheduler.should_draw(mono_now) {
+            self.render(terminal)?;
+            self.scheduler.mark_drawn(mono_now);
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    /// Renders the current `TuiApp` view directly onto `terminal`.
+    pub fn render<B: Backend>(&self, terminal: &mut Terminal<B>) -> anyhow::Result<()>
+    where
+        B::Error: Send + Sync + 'static,
+    {
+        terminal.draw(|frame| draw_ui(frame, self))?;
+        Ok(())
+    }
+
+    fn handle_overlay_key(
+        &mut self,
+        overlay: Overlay,
+        key: KeyEvent,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        match overlay {
+            Overlay::AwaySummary(_) => {
+                if matches!(
+                    key.code,
+                    KeyCode::Enter | KeyCode::Esc | KeyCode::Char(' ' | 'q')
+                ) {
+                    self.overlay = None;
+                }
+            }
+            Overlay::SeedPicker { mut cursor } => {
+                let choices = self.available_seeds();
+                if choices.is_empty() {
+                    self.overlay = None;
+                    return Ok(());
+                }
+                if cursor >= choices.len() {
+                    cursor = choices.len() - 1;
+                }
+                match key.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        cursor = cursor.saturating_sub(1);
+                        self.overlay = Some(Overlay::SeedPicker { cursor });
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if cursor + 1 < choices.len() {
+                            cursor += 1;
+                        }
+                        self.overlay = Some(Overlay::SeedPicker { cursor });
+                    }
+                    KeyCode::Enter => {
+                        let chosen = &choices[cursor];
+                        match self.session.plant(
+                            self.selected_plot,
+                            &chosen.species_id,
+                            clock.now(),
+                        ) {
+                            Ok(outcome) => {
+                                self.status_message = format!(
+                                    "Planted {} in Plot {}.",
+                                    outcome.display_name,
+                                    outcome.plot_index + 1
+                                );
+                            }
+                            Err(ActionError::Store(err)) => return Err(err),
+                            Err(err) => {
+                                self.status_message = format!("Could not plant: {err}");
+                            }
+                        }
+                        self.overlay = None;
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        self.overlay = None;
+                    }
+                    _ => {}
+                }
+            }
+            Overlay::ConfirmCompost { plot_index } => match key.code {
+                KeyCode::Char('y' | 'Y') | KeyCode::Enter => {
+                    match self.session.compost(plot_index, clock.now()) {
+                        Ok(outcome) => {
+                            self.status_message = format!(
+                                "Composted {} -> received 1 {} seed: {}.",
+                                outcome.composted_display_name,
+                                outcome.rarity.label(),
+                                outcome.returned_display_name
+                            );
+                        }
+                        Err(ActionError::Store(err)) => return Err(err),
+                        Err(err) => {
+                            self.status_message = format!("Could not compost: {err}");
+                        }
+                    }
+                    self.overlay = None;
+                }
+                KeyCode::Char('n' | 'N') | KeyCode::Esc => {
+                    self.overlay = None;
+                    self.status_message = "Compost cancelled.".to_string();
+                }
+                _ => {}
+            },
+            Overlay::Almanac { mut cursor } => {
+                let total = self.session.catalog().len();
+                match key.code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        cursor = cursor.saturating_sub(1);
+                        self.overlay = Some(Overlay::Almanac { cursor });
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if cursor + 1 < total {
+                            cursor += 1;
+                        }
+                        self.overlay = Some(Overlay::Almanac { cursor });
+                    }
+                    KeyCode::PageUp => {
+                        cursor = cursor.saturating_sub(5);
+                        self.overlay = Some(Overlay::Almanac { cursor });
+                    }
+                    KeyCode::PageDown => {
+                        cursor = (cursor + 5).min(total.saturating_sub(1));
+                        self.overlay = Some(Overlay::Almanac { cursor });
+                    }
+                    KeyCode::Esc | KeyCode::Char('a' | 'q') => {
+                        self.overlay = None;
+                    }
+                    _ => {}
+                }
+            }
+            Overlay::Help => {
+                if matches!(
+                    key.code,
+                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('?' | 'q' | ' ')
+                ) {
+                    self.overlay = None;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn handle_move_mode_key(
+        &mut self,
+        source_plot: usize,
+        key: KeyEvent,
+        clock: &dyn Clock,
+    ) -> Result<(), StoreError> {
+        if self.navigate_plot(key.code) {
+            return Ok(());
+        }
+        match key.code {
+            KeyCode::Esc => {
+                self.move_source = None;
+                self.status_message = "Move cancelled.".to_string();
+            }
+            KeyCode::Enter | KeyCode::Char('m') => {
+                let dest = self.selected_plot;
+                if dest == source_plot {
+                    self.move_source = None;
+                    self.status_message = format!("Kept plant in Plot {}.", source_plot + 1);
+                    return Ok(());
+                }
+                match self.session.move_plant(source_plot, dest, clock.now()) {
+                    Ok(()) => {
+                        self.move_source = None;
+                        self.status_message = format!(
+                            "Moved plant from Plot {} to Plot {}.",
+                            source_plot + 1,
+                            dest + 1
+                        );
+                    }
+                    Err(ActionError::Store(err)) => return Err(err),
+                    Err(err) => {
+                        self.status_message = format!("Cannot move to Plot {}: {err}", dest + 1);
+                    }
+                }
+            }
+            KeyCode::Char('q') => {
+                self.should_quit = true;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn handle_grid_key(&mut self, key: KeyEvent, clock: &dyn Clock) -> Result<(), StoreError> {
+        if self.navigate_plot(key.code) {
+            return Ok(());
+        }
+
+        match key.code {
+            KeyCode::Char('p') => self.open_seed_picker(),
+            KeyCode::Char('h') => self.try_harvest_selected(clock)?,
+            KeyCode::Enter => {
+                let is_empty = self
+                    .session
+                    .garden()
+                    .plots()
+                    .get(self.selected_plot)
+                    .is_some_and(tg_core::model::Plot::is_empty);
+                if is_empty {
+                    self.open_seed_picker();
+                } else {
+                    self.try_harvest_selected(clock)?;
+                }
+            }
+            KeyCode::Char('c') => {
+                let occupied = self
+                    .session
+                    .garden()
+                    .plots()
+                    .get(self.selected_plot)
+                    .is_some_and(|p| !p.is_empty());
+                if occupied {
+                    self.overlay = Some(Overlay::ConfirmCompost {
+                        plot_index: self.selected_plot,
+                    });
+                } else {
+                    self.status_message = format!(
+                        "Plot {} is empty — nothing to compost.",
+                        self.selected_plot + 1
+                    );
+                }
+            }
+            KeyCode::Char('m') => {
+                let occupied = self
+                    .session
+                    .garden()
+                    .plots()
+                    .get(self.selected_plot)
+                    .is_some_and(|p| !p.is_empty());
+                if occupied {
+                    self.move_source = Some(self.selected_plot);
+                    self.status_message = format!(
+                        "Moving Plot {}: select an empty plot and press Enter (Esc to cancel).",
+                        self.selected_plot + 1
+                    );
+                } else {
+                    self.status_message = format!(
+                        "Plot {} is empty — select a planted plot to move.",
+                        self.selected_plot + 1
+                    );
+                }
+            }
+            KeyCode::Char('a') => {
+                self.overlay = Some(Overlay::Almanac { cursor: 0 });
+            }
+            KeyCode::Char('?') => {
+                self.overlay = Some(Overlay::Help);
+            }
+            KeyCode::Char('q') => {
+                self.should_quit = true;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn open_seed_picker(&mut self) {
+        let is_empty = self
+            .session
+            .garden()
+            .plots()
+            .get(self.selected_plot)
+            .is_some_and(tg_core::model::Plot::is_empty);
+        if !is_empty {
+            self.status_message = format!(
+                "Plot {} already holds a plant — select an empty plot to plant.",
+                self.selected_plot + 1
+            );
+            return;
+        }
+        if self.available_seeds().is_empty() {
+            self.status_message =
+                "Seed pouch is empty — harvest a blooming plant or compost to gather seeds."
+                    .to_string();
+            return;
+        }
+        self.overlay = Some(Overlay::SeedPicker { cursor: 0 });
+    }
+
+    fn try_harvest_selected(&mut self, clock: &dyn Clock) -> Result<(), StoreError> {
+        match self.session.harvest(self.selected_plot, clock.now()) {
+            Ok(outcome) => {
+                let drops: Vec<&str> = outcome
+                    .dropped_seeds
+                    .iter()
+                    .map(|(_, name)| name.as_str())
+                    .collect();
+                self.status_message = format!(
+                    "Harvested {}! Gathered seeds: {}.",
+                    outcome.harvested_display_name,
+                    drops.join(", ")
+                );
+            }
+            Err(ActionError::Store(err)) => return Err(err),
+            Err(err) => {
+                self.status_message = err.to_string();
+            }
+        }
+        Ok(())
+    }
+
+    fn navigate_plot(&mut self, code: KeyCode) -> bool {
+        let count = self.session.garden().plots().len();
+        if count == 0 {
+            return false;
+        }
+        let cols = grid_columns_for(count);
+
+        match code {
+            KeyCode::Left => {
+                self.selected_plot = if self.selected_plot == 0 {
+                    count - 1
+                } else {
+                    self.selected_plot - 1
+                };
+                true
+            }
+            KeyCode::Right | KeyCode::Tab => {
+                self.selected_plot = (self.selected_plot + 1) % count;
+                true
+            }
+            KeyCode::BackTab => {
+                self.selected_plot = (self.selected_plot + count - 1) % count;
+                true
+            }
+            KeyCode::Up => {
+                if self.selected_plot >= cols {
+                    self.selected_plot -= cols;
+                }
+                true
+            }
+            KeyCode::Down => {
+                if self.selected_plot + cols < count {
+                    self.selected_plot += cols;
+                }
+                true
+            }
+            KeyCode::Char(ch @ '1'..='9') => {
+                let idx = (ch as usize) - ('1' as usize);
+                if idx < count {
+                    self.selected_plot = idx;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+const fn grid_columns_for(plot_count: usize) -> usize {
+    if plot_count <= 1 {
+        1
+    } else if plot_count <= 4 {
+        2
+    } else if plot_count <= 9 {
+        3
+    } else {
+        4
+    }
+}

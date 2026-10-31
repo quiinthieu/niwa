@@ -6,6 +6,10 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[lib]
+name = "niwa_garden"
+path = "src/lib.rs"
+
 [[bin]]
 name = "niwa"
 path = "src/main.rs"
@@ -15,11 +19,15 @@ tg-core = { workspace = true }
 tg-signals = { workspace = true }
 tg-store = { workspace = true }
 tg-render = { workspace = true }
+anyhow = { workspace = true }
 clap = { workspace = true }
+crossterm = { workspace = true }
+ratatui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
-serde_json = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

@@ -188,6 +188,26 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// Canonical list of dot-keys exposed by `niwa config list` (PLAN §6).
+    pub const ALL_KEYS: [&'static str; 16] = [
+        "sprites",
+        "color",
+        "fps",
+        "season_mode",
+        "hemisphere",
+        "dormant_after_days",
+        "signals.activity.enabled",
+        "signals.activity.consented_at",
+        "signals.git.enabled",
+        "signals.git.consented_at",
+        "signals.shell.enabled",
+        "signals.shell.consented_at",
+        "git.repos",
+        "git.author_email",
+        "prompt.style",
+        "menubar.show_title",
+    ];
+
     pub fn validate(&self) -> Result<(), StoreError> {
         if !(MIN_FPS..=MAX_FPS).contains(&self.fps) {
             return Err(StoreError::InvalidConfigValue {
