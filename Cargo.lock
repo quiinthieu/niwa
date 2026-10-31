@@ -1194,8 +1194,13 @@ dependencies = [
 name = "tg-signals"
 version = "0.1.0"
 dependencies = [
+ "proptest",
+ "serde",
+ "tempfile",
  "tg-core",
  "tg-store",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

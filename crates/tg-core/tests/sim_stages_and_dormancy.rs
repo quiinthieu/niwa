@@ -2,7 +2,7 @@ use rand::RngCore;
 use std::collections::BTreeMap;
 use tg_core::balance::{
     multiplier_to_bp, Balance, BalanceError, CatchUpBalance, DropBalance, GrowthProfile,
-    SeasonBalance, MULTIPLIER_BP_SCALE,
+    SeasonBalance, SignalBalance, MULTIPLIER_BP_SCALE,
 };
 use tg_core::clock::{Clock, FakeClock, Timestamp, TICKS_PER_DAY, TICK_SECS};
 use tg_core::model::{SimError, Stage};
@@ -21,6 +21,7 @@ fn small_balance(thresholds: [u64; 4], dormant_after_days: u32) -> Balance {
         catch_up: CatchUpBalance::default(),
         seasons: SeasonBalance::default(),
         drops: DropBalance::default(),
+        signals: SignalBalance::default(),
     }
 }
 
@@ -93,6 +94,60 @@ fn balance_validation_rejects_invalid_toml_and_bounds() {
     assert_eq!(
         multiplier_to_bp("season", f64::NAN),
         Err(BalanceError::InvalidMultiplier { field: "season" })
+    );
+
+    let zero_half_life = r#"
+        [garden]
+        default_plots = 4
+        [growth]
+        base_gp_per_tick = 10
+        sun_gp_per_tick = 10
+        default_stage_thresholds = [10, 20, 30, 40]
+        default_species_multiplier = 1.0
+        default_season_multiplier = 1.0
+        [dormancy]
+        dormant_after_days = 7
+        [signals]
+        commit_water_gp = 450
+        shell_instant_water_gp = 8
+        shell_fast_water_gp = 40
+        shell_medium_water_gp = 90
+        shell_long_water_gp = 160
+        shell_min_spacing_secs = 5
+        diminishing_half_life_events = 0
+        hourly_water_cap_gp = 1200
+        daily_water_cap_gp = 4800
+    "#;
+    assert_eq!(
+        Balance::from_toml_str(zero_half_life),
+        Err(BalanceError::ZeroDiminishingHalfLife)
+    );
+
+    let inverted_caps = r#"
+        [garden]
+        default_plots = 4
+        [growth]
+        base_gp_per_tick = 10
+        sun_gp_per_tick = 10
+        default_stage_thresholds = [10, 20, 30, 40]
+        default_species_multiplier = 1.0
+        default_season_multiplier = 1.0
+        [dormancy]
+        dormant_after_days = 7
+        [signals]
+        commit_water_gp = 450
+        shell_instant_water_gp = 8
+        shell_fast_water_gp = 40
+        shell_medium_water_gp = 90
+        shell_long_water_gp = 160
+        shell_min_spacing_secs = 5
+        diminishing_half_life_events = 10
+        hourly_water_cap_gp = 2000
+        daily_water_cap_gp = 1000
+    "#;
+    assert_eq!(
+        Balance::from_toml_str(inverted_caps),
+        Err(BalanceError::DailyCapBelowHourlyCap)
     );
 }
 

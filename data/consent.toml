@@ -1,0 +1,63 @@
+# Shared work-signal consent disclosures (PLAN §5, §10 T09 & T15).
+# Embedded into `tg-signals` so the CLI (`niwa signals enable <name>`), the TUI settings screen,
+# and the macOS menu bar Settings window display the exact same disclosure strings.
+
+[baseline.time]
+display_name = "Wall time"
+summary = "Always-on gentle growth trickle from elapsed wall-clock minutes."
+source = "System wall clock when niwa runs"
+stores = [
+    "created_at and last_tick_at Unix timestamps (seconds) in garden.json",
+    "updated_at Unix timestamp (seconds) in snapshot.json",
+]
+never_stores = [
+    "Any work activity, commands, file paths, repositories, or window titles",
+]
+
+[signals.activity]
+display_name = "Active time"
+summary = "Adds sun on 60-second ticks while you are actively using your computer."
+source = "OS user-input idle duration sampled once per 60-second tick"
+stores = [
+    "ts: Unix timestamp in seconds when the tick was sampled",
+    "active: boolean (true or false) for that 60-second tick",
+    "signals.activity.enabled and signals.activity.consented_at in config.toml",
+]
+never_stores = [
+    "Keystrokes, mouse coordinates, or input contents",
+    "Active application names or window titles",
+    "Screen contents, URLs, or file paths",
+]
+prompt = "Enable the 'activity' signal and store per-tick active booleans locally?"
+
+[signals.git]
+display_name = "Git commits"
+summary = "Adds water when new commits by your configured author email appear in configured local repositories."
+source = "Read-only `git log --since --author=<email> --format=%ct` on configured local repos"
+stores = [
+    "ts: commit Unix timestamp in seconds",
+    "signals.git.enabled, signals.git.consented_at, git.repos, and git.author_email in config.toml",
+]
+never_stores = [
+    "Commit messages, commit hashes, or diffs",
+    "Repository names, remote URLs, or repo paths in events.jsonl or garden.json",
+    "Branch names, changed file names, or line counts",
+]
+prompt = "Enable the 'git' signal and store commit timestamps locally?"
+
+[signals.shell]
+display_name = "Shell commands"
+summary = "Adds sun and water when shell commands finish in a hooked shell session."
+source = "Optional shell hook calling `niwa _ingest --exit <code> --dur <secs>` after each command"
+stores = [
+    "ts: command completion Unix timestamp in seconds",
+    "status: coarse exit class ('ok' for exit 0, 'err' for non-zero exit)",
+    "dur_bucket: coarse duration bucket ('instant' <1s, 'fast' 1-10s, 'medium' 10-60s, 'long' >=60s)",
+    "signals.shell.enabled and signals.shell.consented_at in config.toml",
+]
+never_stores = [
+    "Command text, arguments, or flags",
+    "Current working directory or file paths",
+    "Environment variables, standard input, or command output",
+]
+prompt = "Enable the 'shell' signal and store command timestamps, ok/err status, and duration buckets locally?"

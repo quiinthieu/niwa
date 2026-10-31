@@ -49,3 +49,20 @@ in_season_weight_multiplier = 3
 off_season_weight_multiplier = 1
 # Number of seeds awarded per blooming harvest (tunable).
 seeds_per_harvest = 2
+
+[signals]
+# Base water GP awarded per consented git commit before diminishing returns (tunable; PLAN §4.1).
+commit_water_gp = 450
+# Base water GP awarded per consented shell command by duration bucket before diminishing returns (tunable; PLAN §4.1 & §5).
+shell_instant_water_gp = 8
+shell_fast_water_gp = 40
+shell_medium_water_gp = 90
+shell_long_water_gp = 160
+# Minimum seconds between water-awarding shell commands so rapid command loops grant 0 water (tunable; PLAN §4.1).
+shell_min_spacing_secs = 5
+# Half-life event count K for hourly diminishing returns: n-th water event scales by K / (K + n) (tunable; PLAN §4.1).
+diminishing_half_life_events = 10
+# Maximum total water GP awarded within any single UTC hour (tunable; PLAN §4.1 & T09).
+hourly_water_cap_gp = 1_200
+# Maximum total water GP awarded within any single UTC day (tunable; PLAN §4.1 & T09).
+daily_water_cap_gp = 4_800

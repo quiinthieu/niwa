@@ -9,6 +9,13 @@ repository.workspace = true
 [dependencies]
 tg-core = { workspace = true }
 tg-store = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
