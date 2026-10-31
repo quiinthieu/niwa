@@ -1,0 +1,15 @@
+---
+source: crates/tg-store/tests/snapshot_schema.rs
+expression: raw_active
+---
+{
+  "schema_version": 1,
+  "glyph": "◈",
+  "summary": "4/8 planted · 1 blooming",
+  "season": "summer",
+  "compact_frame": "Niwa · Summer · 4/8 planted · 1 blooming\n  1. ◈ Moss (Blooming)\n  2. ◎ Fern (Mature)",
+  "updated_at": 1752000060,
+  "dormant": false,
+  "planted_count": 4,
+  "blooming_count": 1
+}

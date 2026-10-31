@@ -190,7 +190,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* real shells in CI produce spool lines with timestamp, exit class and duration bucket only. Install → uninstall restores the rc file byte for byte. The `_ingest` latency is measured and recorded.
 
 ### M3 Ambient surfaces & macOS menu bar
-- [ ] **T13 Snapshot consumers.** `niwa prompt [--style glyph|emoji|none]` fast path, tmux status snippet, documented starship custom-module example, `docs/snapshot-schema.md` (versioned).
+- [x] **T13 Snapshot consumers.** `niwa prompt [--style glyph|emoji|none]` fast path, tmux status snippet, documented starship custom-module example, `docs/snapshot-schema.md` (versioned).
   *AC:* `prompt` never runs the simulation when the snapshot is fresh. Its latency is measured. Schema golden tests pass. Unknown fields are ignored.
 - [ ] **T14 Swift menu bar app.** XcodeGen project, `MenuBarExtra` with the glyph title and a popover that renders the compact frame in a monospace font, a DispatchSource watch on `snapshot.json`, actions (harvest all, open TUI in Terminal, pause signals) that run `niwa`, and launch at login (`SMAppService` *(verify)*). If T10 chose the Swift route, it also hosts the idle-time sampler.
   *AC:* the XCTests and the UI smoke test pass. The app shows a helpful state when `niwa` is missing. The Instruments check is noted in `docs/perf.md`.
