@@ -104,6 +104,9 @@ impl FromStr for ShellKind {
 /// Honours `HOME`, `ZDOTDIR`, and `XDG_CONFIG_HOME` ahead of [`BaseDirs`] so isolated
 /// `TestEnv` runs never touch the real user `$HOME`.
 pub fn resolve_rc_path(shell: ShellKind) -> Result<PathBuf, StoreError> {
+    if non_empty_os(std::env::var_os("HOME")).is_some() {
+        return resolve_rc_path_from_env(shell, |key| std::env::var_os(key), None);
+    }
     let base_dirs = BaseDirs::new();
     let fallback_home = base_dirs.as_ref().map(BaseDirs::home_dir);
     resolve_rc_path_from_env(shell, |key| std::env::var_os(key), fallback_home)
