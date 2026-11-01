@@ -8,4 +8,4 @@ NIWA_CLI_CRATE = niwa-garden
 NIWA_HOMEBREW_FORMULA = niwa
 NIWA_HOMEBREW_CASK = niwa-garden
 NIWA_BUNDLE_ID = io.github.quiinthieu.niwa
-NIWA_VERSION = 0.1.0
+NIWA_VERSION = 1.0.0

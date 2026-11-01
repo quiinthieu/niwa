@@ -368,7 +368,8 @@ impl GardenStore {
 
     /// Removes persisted garden state (`garden.json`, `garden.json.bak`, `snapshot.json`) under
     /// an exclusive lock, and when `include_all` is `true` (`niwa reset --all`), also removes
-    /// `events.jsonl`, `config.toml`, and `garden.lock` (PLAN §0.6, §5 & §10 T08).
+    /// `events.jsonl`, `config.toml`, `garden.lock`, and any now-empty Niwa data/config
+    /// directories (PLAN §0.6, §5, §10 T08 & T18).
     pub fn reset(&self, include_all: bool) -> Result<ResetOutcome, StoreError> {
         let mut removed_files = Vec::new();
         {
@@ -388,9 +389,17 @@ impl GardenStore {
         }
         if include_all {
             remove_file_if_present(&self.paths.lock_file(), &mut removed_files)?;
+            remove_dir_if_empty(self.paths.data_dir());
+            if self.paths.config_dir() != self.paths.data_dir() {
+                remove_dir_if_empty(self.paths.config_dir());
+            }
         }
         Ok(ResetOutcome { removed_files })
     }
+}
+
+fn remove_dir_if_empty(path: &Path) {
+    let _ = fs::remove_dir(path);
 }
 
 fn remove_file_if_present(path: &Path, removed: &mut Vec<PathBuf>) -> Result<(), StoreError> {

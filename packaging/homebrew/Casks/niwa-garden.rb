@@ -1,5 +1,5 @@
 cask "niwa-garden" do
-  version "0.1.0"
+  version "1.0.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
 
   url "https://github.com/quiinthieu/niwa/releases/download/v#{version}/Niwa-v#{version}-macos.dmg"

@@ -221,7 +221,8 @@ pub fn install_daemon_unit(
     })
 }
 
-/// Removes the per-user `launchd` plist or `systemd` user service if present (idempotent).
+/// Removes the per-user `launchd` plist or `systemd` user service if present (idempotent),
+/// pruning empty unit directories created during installation.
 pub fn uninstall_daemon_unit(
     unit_paths: &DaemonUnitPaths,
 ) -> Result<UninstallDaemonUnitOutcome, StoreError> {
@@ -236,6 +237,23 @@ pub fn uninstall_daemon_unit(
             });
         }
     };
+    if removed {
+        match unit_paths.platform {
+            PlatformKind::MacOs => {
+                if let Some(launch_agents) = unit_paths.unit_path.parent() {
+                    let _ = fs::remove_dir(launch_agents);
+                }
+            }
+            PlatformKind::Linux => {
+                if let Some(systemd_user) = unit_paths.unit_path.parent() {
+                    let _ = fs::remove_dir(systemd_user);
+                    if let Some(systemd_dir) = systemd_user.parent() {
+                        let _ = fs::remove_dir(systemd_dir);
+                    }
+                }
+            }
+        }
+    }
     Ok(UninstallDaemonUnitOutcome {
         platform: unit_paths.platform,
         unit_identifier: unit_paths.unit_identifier.clone(),
