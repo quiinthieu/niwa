@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-01
+
 ### Added
 - **T09 Signal framework & consent:** Privacy-safe `Copy` `WorkEvent` JSONL schema (`activity`, `git_commit`, `shell` with `deny_unknown_fields`) and lock-aware `EventSpool` (`append`, corrupt-line-skipping `read`, concurrent-tail-preserving `compact`, and `purge_signal`) in `crates/tg-store/src/spool.rs`.
 - Tunable `[signals]` water rewards, shell minimum spacing, diminishing-returns half-life, and hourly/daily water caps in `data/balance.toml` (`SignalBalance` in `crates/tg-core/src/balance.rs`) plus persisted `WaterBudgetState` in `crates/tg-store/src/save.rs`.
@@ -37,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single-source Homebrew tap generator (`scripts/render-homebrew.sh`, reading `crates/tg-core/src/product.rs` and `Cargo.toml` with zero hardcoded product identifiers), generated manifests in `packaging/homebrew/{Formula/niwa.rb,Casks/niwa-garden.rb}` (including a Gatekeeper `--no-quarantine` / `xattr -dr com.apple.quarantine` `caveats` block for `$0` ad-hoc builds), and public tap repository `quiinthieu/homebrew-tap`.
 - Release packaging workflow (`.github/workflows/release.yml`, supporting `v*` tag pushes and `workflow_dispatch` / PR dry runs) and universal macOS DMG packager (`scripts/package-macos-dmg.sh`) producing `niwa-v<VERSION>-universal-apple-darwin.tar.gz` (`lipo -create` arm64 + x86_64), `niwa-v<VERSION>-x86_64-unknown-linux-gnu.tar.gz`, `niwa-v<VERSION>-aarch64-unknown-linux-gnu.tar.gz` (ARM64 cross-compiled, ELF-verified, and `qemu-aarch64` smoke-tested), mount-verified universal `Niwa-v<VERSION>-macos.dmg` (secret-gated Apple Developer ID + `notarytool` + `stapler` + `spctl -a`, with zero-cost `$0` ad-hoc `codesign --verify --deep --strict` fallback), and `SHA256SUMS.txt`.
 - Homebrew CI verification runner (`scripts/verify-homebrew-ci.sh`, wired into `.github/workflows/ci.yml` on `macos-latest`) executing `brew style`, `brew audit --strict` (formula + cask), `brew install --build-from-source`, and `brew test`, plus Rust packaging integration suite (`crates/niwa/tests/packaging_homebrew.rs`).
+- **T18 Docs & v1.0:** Complete user, configuration, privacy, and zero-residue uninstall guide in `README.md` (with PyPI `niwa` `PATH` and `niwaki` project disambiguation per `PLAN.md` §1.3, real-run terminal and macOS menu bar screenshots in `docs/assets/{tui-garden.svg,macos-menubar.png}`, and strictly measured figures from `docs/perf.md` / `tests/fixtures/perf-baseline.json`), plus expanded zero-residue uninstall documentation in `docs/privacy.md`.
+- Zero-residue directory pruning across `GardenStore::reset` (`crates/tg-store/src/save.rs`), `uninstall_shell_hook` (`crates/tg-store/src/shell_hook.rs`), and `uninstall_daemon_unit` (`crates/tg-store/src/daemon_units.rs`), verified end-to-end from fresh-home install to uninstall while preserving unrelated user files (`crates/niwa/tests/docs_and_uninstall_flow.rs`).
+- Workspace, macOS `Product.xcconfig`, and Homebrew formula/cask version bump to `1.0.0`.
 
 ## [0.1.0] - 2026-10-31
 

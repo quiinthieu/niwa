@@ -81,11 +81,16 @@ The only files outside those directories Niwa can ever touch—and **only** on e
 
 ---
 
-## Inspecting, Disabling, Purging, and Resetting
+## Inspecting, Disabling, Purging, and Uninstalling
 
 - **Inspect signal status and queued event counts:**
   ```sh
   niwa signals list
+  ```
+- **Temporarily pause or resume all opt-in signals without losing consent records:**
+  ```sh
+  niwa signals pause
+  niwa signals resume
   ```
 - **Stop collecting a signal:**
   ```sh
@@ -95,7 +100,10 @@ The only files outside those directories Niwa can ever touch—and **only** on e
   ```sh
   niwa signals disable <activity|git|shell> --purge
   ```
-- **Delete all garden state, snapshots, `events.jsonl`, and `config.toml`:**
+- **Remove shell hooks, background service units, and all local state/config (leaving zero residue):**
   ```sh
+  niwa hook uninstall
+  niwa daemon uninstall
   niwa reset --all
   ```
+  `niwa hook uninstall` restores any modified shell startup files (`~/.zshrc`, `~/.bashrc`, `~/.config/fish/config.fish`) byte-for-byte and removes `.niwa.bak` backups. `niwa daemon uninstall` removes the per-user `launchd` plist or `systemd` user unit. `niwa reset --all` deletes `garden.json`, `garden.json.bak`, `snapshot.json`, `events.jsonl`, `config.toml`, `garden.lock`, and any now-empty Niwa data/config directories.

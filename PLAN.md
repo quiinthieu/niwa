@@ -202,7 +202,7 @@ Each task fits in one agent session. Tick `[x]` when it's done. **M1 is the MVP*
   *AC:* every §7 target has a measured value in `docs/perf.md` (or a filed issue if it's missed). There are no color-only state indicators.
 - [x] **T17 Packaging & Homebrew.** `release.yml`: macOS universal (`lipo` arm64 + x86_64) and Linux x86_64/arm64 tarballs with checksums. Signed and notarised `Niwa.app` DMG (secrets in Actions). Tap repo `quiinthieu/homebrew-tap` with formula `niwa` and cask `niwa-garden` (the cask `depends_on formula: "niwa"` *(verify syntax)*). Re-run the §1.3 name check first.
   *AC:* `brew install --build-from-source` and `brew audit --strict` pass in CI. A tag dry run produces every artifact. `spctl -a` accepts the app.
-- [ ] **T18 Docs & v1.0.** README (screenshots from real runs, no invented numbers), `docs/privacy.md`, uninstall guide (`hook uninstall`, `daemon uninstall`, `reset --all`), CHANGELOG, and `v1.0.0`.
+- [x] **T18 Docs & v1.0.** README (screenshots from real runs, no invented numbers), `docs/privacy.md`, uninstall guide (`hook uninstall`, `daemon uninstall`, `reset --all`), CHANGELOG, and `v1.0.0`.
   *AC:* on a fresh macOS VM, the README works from install to uninstall and leaves no residue.
 
 ## 11. Risks & mitigations

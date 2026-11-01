@@ -295,7 +295,8 @@ pub fn uninstall_shell_hook(rc_path: &Path) -> Result<UninstallShellHookOutcome,
     let existing_perms = fs::metadata(rc_path).ok().map(|m| m.permissions());
     let restored = strip_span(&bytes, &span);
 
-    if span.meta.created && restored.is_empty() {
+    let created_by_niwa = span.meta.created && restored.is_empty();
+    if created_by_niwa {
         remove_file_if_present(rc_path, "remove created shell rc file")?;
     } else {
         atomic_write_bytes(rc_path, None, &restored, None)?;
@@ -303,6 +304,14 @@ pub fn uninstall_shell_hook(rc_path: &Path) -> Result<UninstallShellHookOutcome,
     }
 
     remove_file_if_present(&backup_path_for_rc(rc_path), "remove shell hook backup")?;
+
+    if created_by_niwa {
+        if let Some(parent) = rc_path.parent() {
+            if parent.file_name() == Some(OsStr::new("fish")) {
+                let _ = fs::remove_dir(parent);
+            }
+        }
+    }
 
     Ok(UninstallShellHookOutcome {
         rc_path: rc_path.to_path_buf(),
